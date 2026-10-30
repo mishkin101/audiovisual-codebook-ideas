@@ -4,7 +4,10 @@ A public journal of what I see when I hear music: color, motion, texture, and en
 
 Paper sketches come first. This repo adds **time**: one tap in the moment to mark *when* something shifts, then details and sketch photos added later, so each listen can be replayed as a timeline.
 
-- 📄 [Concept (draft)](docs/concept.md)
+- 🎧 [Marker](mark.html): tap while listening
+- 📄 [Concept](docs/concept.md)
 - 🗒️ [Prompts and early notes](prompts/)
 
-_Work in progress: the concept is under review before anything is built._
+_Work in progress. Next: the session editor for filling in moments after listening._
+
+Run locally: `python3 -m http.server 8765`, then open http://localhost:8765/mark.html

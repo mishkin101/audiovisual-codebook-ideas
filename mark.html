@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Listening Marker</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <style>
+    .timer { font-variant-numeric: tabular-nums; font-size: 2.4rem; font-weight: 600; margin: 2px 0 10px; }
+    .timer .pass { font-size: 0.9rem; font-weight: 500; color: var(--muted); display: block; }
+
+    .energy { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+    .energy button { width: 48px; height: 44px; font-size: 1.3rem; padding: 0; }
+    .energy .level { min-width: 92px; text-align: center; font-variant-numeric: tabular-nums; }
+    .dots { letter-spacing: 3px; }
+
+    #mark {
+      display: block;
+      width: 100%;
+      min-height: 38vh;
+      margin: 0 0 14px;
+      border-radius: 22px;
+      font-size: 1.8rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      background: var(--accent);
+      color: var(--accent-text);
+      border: none;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      touch-action: manipulation;
+      transition: transform 80ms ease, background 120ms ease;
+    }
+    #mark small { display: block; font-size: 0.85rem; font-weight: 500; letter-spacing: 0; opacity: 0.85; margin-top: 6px; }
+    #mark:active { transform: scale(0.985); }
+    #mark.holding { background: var(--hold); }
+    #mark:disabled { opacity: 0.35; }
+
+    .marks { list-style: none; margin: 0; padding: 0; }
+    .marks li {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 0; border-top: 1px solid var(--line);
+      font-variant-numeric: tabular-nums;
+    }
+    .marks li:first-child { border-top: none; }
+    .marks .num { font-weight: 700; min-width: 2.6em; }
+    .marks .when { flex: 1; }
+    .marks .del { padding: 4px 10px; color: var(--muted); }
+    .check { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: var(--text); margin: 2px 0 0; }
+    .check input { width: auto; margin: 0; }
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; }
+    .status { min-height: 1.4em; margin: 8px 0 0; }
+    details summary { cursor: pointer; font-weight: 600; }
+    details[open] summary { margin-bottom: 12px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Listening Marker</h1>
+
+  <details class="card" id="trackCard" open>
+    <summary id="trackSummary">Track</summary>
+    <label for="title">Title</label>
+    <input id="title" autocomplete="off">
+    <label for="artist">Artist</label>
+    <input id="artist" autocomplete="off">
+    <div class="row">
+      <div>
+        <label for="source">Source</label>
+        <select id="source">
+          <option value="spotify">Spotify</option>
+          <option value="youtube">YouTube</option>
+          <option value="local">Local file</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div>
+        <label for="url">Link (optional)</label>
+        <input id="url" inputmode="url" autocomplete="off">
+      </div>
+    </div>
+    <label for="moodBefore">Mood before (free words, optional)</label>
+    <input id="moodBefore" autocomplete="off">
+    <label class="check"><input type="checkbox" id="private"> Private session (kept off the public repo)</label>
+  </details>
+
+  <section class="card">
+    <div class="timer"><span class="pass" id="passLabel">No pass yet</span><span id="clock">0:00.0</span></div>
+    <div class="actions">
+      <button class="primary" id="startBtn">Start pass</button>
+      <button id="stopBtn" disabled>Stop pass</button>
+    </div>
+    <div class="energy">
+      <span class="small muted">Energy</span>
+      <button id="energyDown" aria-label="Energy down" disabled>−</button>
+      <span class="level"><span class="dots" id="energyDots">—</span></span>
+      <button id="energyUp" aria-label="Energy up" disabled>+</button>
+    </div>
+  </section>
+
+  <button id="mark" disabled>MARK<small>tap = instant · hold = range</small></button>
+
+  <section class="card">
+    <div class="actions" style="justify-content: space-between; align-items: center;">
+      <strong>Marks <span class="muted" id="markCount"></span></strong>
+      <button id="undoBtn" disabled>Undo last</button>
+    </div>
+    <ul class="marks" id="marks"></ul>
+    <p class="small muted" id="emptyMarks">Marks appear here. Write their numbers next to your sketches.</p>
+  </section>
+
+  <section class="card">
+    <label for="moodAfter">Mood after (free words, optional)</label>
+    <input id="moodAfter" autocomplete="off">
+    <div class="actions">
+      <button class="primary" id="downloadBtn">Download session.json</button>
+      <button id="copyBtn">Copy</button>
+      <button id="resetBtn">Start fresh</button>
+    </div>
+    <p class="small muted status" id="status"></p>
+  </section>
+
+  <p class="small muted">Keyboard: space = mark (hold for a range), ↑ ↓ = energy. Saved in this browser as you go.</p>
+</main>
+
+<script src="assets/journal.js"></script>
+<script>
+(function () {
+  const J = window.Journal;
+  const KEY = "journal.marker.current";
+  const HOLD_MS = 400;
+  const $ = (id) => document.getElementById(id);
+
+  function blankSession() {
+    return {
+      id: "", date: J.today(), private: false,
+      track: { title: "", artist: "", source: "spotify", url: "", duration_s: null },
+      context: { time_of_day: "", place: "", mood_before: "", mood_after: "" },
+      passes: [], moments: [], sketches: [], reflection: "", audio_features: null,
+      _marker: { running: false, startMs: null, energy: null, nextN: 1 }
+    };
+  }
+
+  let s = J.store.get(KEY) || blankSession();
+  let hold = null;      // { t, timer, isRange } while MARK is pressed
+  let wakeLock = null;
+
+  const fields = {
+    title: ["track", "title"], artist: ["track", "artist"], source: ["track", "source"],
+    url: ["track", "url"], moodBefore: ["context", "mood_before"], moodAfter: ["context", "mood_after"]
+  };
+
+  function save() {
+    s.id = J.sessionId(s.date, s.track);
+    if (!J.store.set(KEY, s)) setStatus("Couldn't save in this browser. Download before closing.");
+  }
+
+  function currentPass() { return s.passes[s.passes.length - 1]; }
+  function elapsed() { return s._marker.running ? (Date.now() - s._marker.startMs) / 1000 : 0; }
+
+  function timeOfDay(h) {
+    return h < 5 ? "night" : h < 12 ? "morning" : h < 17 ? "afternoon" : h < 21 ? "evening" : "night";
+  }
+
+  // --- passes ---
+  function startPass() {
+    const now = Date.now();
+    s.passes.push({ n: s.passes.length + 1, started: J.clockTime(now), ended_s: null, energy_log: [] });
+    if (!s.context.time_of_day) s.context.time_of_day = timeOfDay(new Date(now).getHours());
+    s._marker.running = true;
+    s._marker.startMs = now;
+    if (s._marker.energy != null) currentPass().energy_log.push({ t_s: 0, energy: s._marker.energy });
+    $("trackCard").open = false;
+    requestWakeLock();
+    save(); render();
+  }
+
+  function stopPass() {
+    if (hold) endHold();
+    currentPass().ended_s = round(elapsed());
+    s._marker.running = false;
+    s._marker.startMs = null;
+    releaseWakeLock();
+    save(); render();
+  }
+
+  // --- energy ---
+  function changeEnergy(delta) {
+    if (!s._marker.running) return;
+    const cur = s._marker.energy == null ? 3 - delta : s._marker.energy;
+    const next = Math.min(5, Math.max(1, cur + delta));
+    s._marker.energy = next;
+    currentPass().energy_log.push({ t_s: round(elapsed()), energy: next });
+    save(); render();
+  }
+
+  // --- marks ---
+  function round(x) { return Math.round(x * 10) / 10; }
+
+  function beginHold() {
+    if (!s._marker.running || hold) return;
+    hold = { t: round(elapsed()), isRange: false };
+    hold.timer = setTimeout(() => { if (hold) { hold.isRange = true; render(); } }, HOLD_MS);
+    render();
+  }
+
+  function endHold() {
+    if (!hold) return;
+    clearTimeout(hold.timer);
+    const end = round(elapsed());
+    s.moments.push(J.newMoment({
+      n: s._marker.nextN++,
+      pass: currentPass().n,
+      t_s: hold.t,
+      t_end_s: hold.isRange ? end : null,
+      energy: s._marker.energy
+    }));
+    hold = null;
+    if (navigator.vibrate) navigator.vibrate(15);
+    save(); render();
+  }
+
+  function cancelHold() { if (hold) endHold(); }
+
+  function deleteMark(n) {
+    s.moments = s.moments.filter((m) => m.n !== n);
+    save(); render();
+  }
+
+  // --- export ---
+  function exportSession() {
+    const out = JSON.parse(JSON.stringify(s));
+    delete out._marker;
+    out.id = J.sessionId(out.date, out.track);
+    return JSON.stringify(out, null, 2);
+  }
+
+  function setStatus(text) { $("status").textContent = text; }
+
+  // --- wake lock keeps the phone screen on during a pass ---
+  async function requestWakeLock() {
+    try { if ("wakeLock" in navigator) wakeLock = await navigator.wakeLock.request("screen"); } catch (e) {}
+  }
+  function releaseWakeLock() { try { wakeLock && wakeLock.release(); } catch (e) {} wakeLock = null; }
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && s._marker.running) requestWakeLock();
+  });
+
+  // --- render ---
+  function render() {
+    const running = s._marker.running;
+    const pass = currentPass();
+    $("passLabel").textContent = pass ? "Pass " + pass.n + (running ? " · running" : " · stopped") : "No pass yet";
+    $("clock").textContent = J.formatTime(running ? elapsed() : pass ? pass.ended_s : 0);
+    $("startBtn").disabled = running;
+    $("startBtn").textContent = s.passes.length ? "New pass" : "Start pass";
+    $("stopBtn").disabled = !running;
+    $("energyDown").disabled = $("energyUp").disabled = !running;
+    const e = s._marker.energy;
+    $("energyDots").textContent = e == null ? "—" : "●".repeat(e) + "○".repeat(5 - e);
+
+    const mark = $("mark");
+    mark.disabled = !running;
+    mark.classList.toggle("holding", !!(hold && hold.isRange));
+    mark.firstChild.textContent = hold && hold.isRange ? "HOLDING" : "MARK";
+    mark.lastChild.textContent = hold && hold.isRange
+      ? "from " + J.formatTime(hold.t) + " · release to end"
+      : running ? "tap = instant · hold = range" : "start a pass first";
+
+    const t = s.track;
+    $("trackSummary").textContent = t.title || t.artist ? "Track: " + [t.title, t.artist].filter(Boolean).join(" · ") : "Track";
+
+    const list = $("marks");
+    list.innerHTML = "";
+    s.moments.slice().reverse().forEach((m) => {
+      const li = document.createElement("li");
+      const range = m.t_end_s != null ? " → " + J.formatTime(m.t_end_s) : "";
+      li.innerHTML =
+        '<span class="num">#' + m.n + '</span>' +
+        '<span class="when">' + J.formatTime(m.t_s) + range +
+        ' <span class="small muted">· pass ' + m.pass + (m.energy ? " · energy " + m.energy : "") + '</span></span>';
+      const del = document.createElement("button");
+      del.className = "del"; del.textContent = "×"; del.setAttribute("aria-label", "Delete mark " + m.n);
+      del.onclick = () => deleteMark(m.n);
+      li.appendChild(del);
+      list.appendChild(li);
+    });
+    $("markCount").textContent = s.moments.length ? "(" + s.moments.length + ")" : "";
+    $("emptyMarks").hidden = s.moments.length > 0;
+    $("undoBtn").disabled = s.moments.length === 0;
+  }
+
+  // --- wiring ---
+  Object.entries(fields).forEach(([id, [group, key]]) => {
+    const el = $(id);
+    el.value = s[group][key] || "";
+    el.addEventListener("input", () => { s[group][key] = el.value; save(); render(); });
+  });
+  $("private").checked = !!s.private;
+  $("private").addEventListener("change", (e) => { s.private = e.target.checked; save(); });
+  if (s.passes.length) $("trackCard").open = false;
+
+  $("startBtn").onclick = startPass;
+  $("stopBtn").onclick = stopPass;
+  $("energyUp").onclick = () => changeEnergy(1);
+  $("energyDown").onclick = () => changeEnergy(-1);
+  $("undoBtn").onclick = () => { s.moments.pop(); save(); render(); };
+
+  const mark = $("mark");
+  mark.addEventListener("pointerdown", (e) => { e.preventDefault(); mark.setPointerCapture(e.pointerId); beginHold(); });
+  mark.addEventListener("pointerup", endHold);
+  mark.addEventListener("pointercancel", cancelHold);
+  mark.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  const typing = (e) => e.target instanceof Element && e.target.matches("input, select, textarea");
+  document.addEventListener("keydown", (e) => {
+    if (typing(e)) return;
+    if (e.code === "Space") { e.preventDefault(); if (!e.repeat) beginHold(); }
+    else if (e.code === "ArrowUp") { e.preventDefault(); changeEnergy(1); }
+    else if (e.code === "ArrowDown") { e.preventDefault(); changeEnergy(-1); }
+  });
+  document.addEventListener("keyup", (e) => {
+    if (e.code === "Space" && !typing(e)) { e.preventDefault(); endHold(); }
+  });
+
+  $("downloadBtn").onclick = () => {
+    const json = exportSession();
+    J.download("session.json", json);
+    setStatus("Downloaded. Move it into " + (s.private ? "private/" : "sessions/") + (s.id || "<date-artist-track>") + "/");
+  };
+  $("copyBtn").onclick = async () => {
+    try { await navigator.clipboard.writeText(exportSession()); setStatus("Copied to clipboard."); }
+    catch (e) { setStatus("Couldn't copy here. Use Download instead."); }
+  };
+  $("resetBtn").onclick = () => {
+    if (s.moments.length && !confirm("Clear this session? Download it first if you want to keep it.")) return;
+    if (s._marker.running) stopPass();
+    s = blankSession();
+    J.store.remove(KEY);
+    Object.keys(fields).forEach((id) => { $(id).value = id === "source" ? "spotify" : ""; });
+    $("private").checked = false;
+    $("trackCard").open = true;
+    setStatus("");
+    render();
+  };
+
+  setInterval(() => { if (s._marker.running) $("clock").textContent = J.formatTime(elapsed()); }, 100);
+  render();
+})();
+</script>
+</body>
+</html>

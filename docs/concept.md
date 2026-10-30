@@ -51,17 +51,22 @@ docs/concept.md       this file
 ```
 
 ## Draft `session.json`
+`n` is the mark number written on paper. It never changes, even if other marks are deleted. `energy_log` records each energy change during a pass, which becomes the energy curve.
+
 ```json
 {
   "id": "2026-10-30-artist-track",
   "date": "2026-10-30",
   "private": false,
-  "passes": [ { "n": 1, "started": "18:05" }, { "n": 2, "started": "18:20" } ],
+  "passes": [
+    { "n": 1, "started": "18:05", "ended_s": 312.4, "energy_log": [ { "t_s": 0, "energy": 2 }, { "t_s": 95.1, "energy": 4 } ] },
+    { "n": 2, "started": "18:20", "ended_s": 310.0, "energy_log": [] }
+  ],
   "track": { "title": "", "artist": "", "source": "spotify", "url": "", "duration_s": 0 },
   "context": { "time_of_day": "evening", "place": "", "mood_before": "free words", "mood_after": "free words" },
   "moments": [
-    { "pass": 1, "t_s": 42.5, "t_end_s": null, "energy": 3, "tags": ["fizz"], "colors": ["#c0c8d0"], "motion": "rising", "texture": "grainy", "other": "", "note": "", "sketch": "sketch-1.jpg" },
-    { "pass": 2, "t_s": 60, "t_end_s": 75, "energy": 5, "tags": [], "colors": [], "motion": "", "texture": "", "other": "felt like being inside it", "note": "" }
+    { "n": 1, "pass": 1, "t_s": 42.5, "t_end_s": null, "energy": 3, "tags": ["fizz"], "colors": ["#c0c8d0"], "motion": "rising", "texture": "grainy", "other": "", "note": "", "sketch": "sketch-1.jpg" },
+    { "n": 2, "pass": 2, "t_s": 60, "t_end_s": 75, "energy": 5, "tags": [], "colors": [], "motion": "", "texture": "", "other": "felt like being inside it", "note": "" }
   ],
   "sketches": [ { "file": "sketch-1.jpg", "t_start_s": 30, "t_end_s": 60, "caption": "" } ],
   "reflection": "",
@@ -70,8 +75,8 @@ docs/concept.md       this file
 ```
 
 ## Build order
-1. ✅ This concept doc (review now)
-2. Marker page: Start / MARK / energy, saved in the browser, export
+1. ✅ This concept doc
+2. ✅ Marker page (`mark.html`): Start / New pass, tap or hold MARK, energy, saved in the browser, export
 3. Session editor: fill in moments, codebook chips, attach photos, export folder
 4. Track strip + gallery + index script + GitHub Pages
 5. First real session from a recent sketch
