@@ -22,12 +22,20 @@ I see music: color, motion, texture, shifts in energy. I sketch these on paper w
 | **Reflection** | Free text after the track ends. |
 
 ## Daily flow
-1. **Listen + tap.** Open the Marker page (phone or laptop), enter the track, press **Start** with the song, then tap **MARK** for an instant, or press and hold to mark a range (release when it ends). Energy up/down is optional. Marks are saved in the browser and work offline.
-2. **Sketch on paper** as usual, writing mark numbers (#1, #2…) next to the drawings.
-3. **Digitize later.** The Session editor loads the marks. Fill in each moment (quick chips appear for tags I've used before; anything unusual goes in *other*), attach sketch photos, then add mood and reflection. Export a session folder.
-4. **Commit.** The folder goes into `sessions/` and GitHub Pages updates the public gallery.
+1. **Listen + mark.** Open the Marker (`mark.html`, full screen, black). Pick a source: **File** for a local track (the whole waveform appears up front), or **Input / System** for Spotify (the waveform draws live as it plays). Press **Enter** to start a pass.
+2. **One hand marks, the other sets energy:**
+   - **Space** tap = instant mark · **hold space** = range · **A** = alt mark
+   - **Two-finger swipe** on the trackpad = energy, a continuous 0.00 to 1.00 scale (clicks never make marks)
+   - Other keys: arrow keys nudge energy, **S** stop, **T** input test, **I** invert swipe direction
+3. **Sketch on paper** as usual, writing mark numbers (01, 02…) next to the drawings.
+4. **Digitize later.** The Session editor loads the marks. Fill in each moment (quick chips appear for tags I've used before; anything unusual goes in *other*), attach sketch photos, add reflection. Export a session folder.
+5. **Commit.** The folder goes into `sessions/` (or `private/`) and GitHub Pages updates the public gallery.
 
-> Why a stopwatch? Spotify and most streaming sites don't let a webpage read the song position, so the Marker keeps its own time from when you press Start.
+> Spotify's desktop app doesn't share its audio with webpages. The Marker listens instead: **System** captures computer audio where the browser allows it, and **Input** listens to an audio input. A free loopback driver (e.g. BlackHole) can route Spotify into **Input** without a microphone.
+> **T** opens an input test that shows what the browser receives, including swiping while space is held.
+
+## Design system
+Architectural, brutalist, minimal: pure monochrome on black, hairline rules, square corners, one monospace typeface, full-bleed layouts. Spec: [`docs/design-system.html`](design-system.html). Tokens: `assets/style.css`.
 
 ## Review: what I want to discover
 1. **How a track's visuals evolve.** A *track strip*: a horizontal timeline with color bands between moments, an energy curve, tags, and sketch thumbnails at their timestamps. The static picture turned back into motion.
@@ -51,7 +59,7 @@ docs/concept.md       this file
 ```
 
 ## Draft `session.json`
-`n` is the mark number written on paper. It never changes, even if other marks are deleted. `energy_log` records each energy change during a pass, which becomes the energy curve.
+`n` is the mark number written on paper. It never changes, even if other marks are deleted. `kind` is `tap`, `range` or `alt`. Energy is continuous from 0 to 1; `energy_log` samples it (up to 10 per second) during each pass. `waveform.peaks` holds the loudest level 20 times per second, from the file or from live capture.
 
 ```json
 {
@@ -59,24 +67,25 @@ docs/concept.md       this file
   "date": "2026-10-30",
   "private": false,
   "passes": [
-    { "n": 1, "started": "18:05", "ended_s": 312.4, "energy_log": [ { "t_s": 0, "energy": 2 }, { "t_s": 95.1, "energy": 4 } ] },
+    { "n": 1, "started": "18:05", "ended_s": 312.4, "energy_log": [ { "t_s": 0, "energy": 0.5 }, { "t_s": 95.1, "energy": 0.82 } ] },
     { "n": 2, "started": "18:20", "ended_s": 310.0, "energy_log": [] }
   ],
   "track": { "title": "", "artist": "", "source": "spotify", "url": "", "duration_s": 0 },
   "context": { "time_of_day": "evening", "place": "", "mood_before": "free words", "mood_after": "free words" },
   "moments": [
-    { "n": 1, "pass": 1, "t_s": 42.5, "t_end_s": null, "energy": 3, "tags": ["fizz"], "colors": ["#c0c8d0"], "motion": "rising", "texture": "grainy", "other": "", "note": "", "sketch": "sketch-1.jpg" },
-    { "n": 2, "pass": 2, "t_s": 60, "t_end_s": 75, "energy": 5, "tags": [], "colors": [], "motion": "", "texture": "", "other": "felt like being inside it", "note": "" }
+    { "n": 1, "pass": 1, "kind": "tap", "t_s": 42.5, "t_end_s": null, "energy": 0.62, "tags": ["fizz"], "colors": ["#c0c8d0"], "motion": "rising", "texture": "grainy", "other": "", "note": "", "sketch": "sketch-1.jpg" },
+    { "n": 2, "pass": 2, "kind": "range", "t_s": 60, "t_end_s": 75, "energy": 0.91, "tags": [], "colors": [], "motion": "", "texture": "", "other": "felt like being inside it", "note": "" }
   ],
   "sketches": [ { "file": "sketch-1.jpg", "t_start_s": 30, "t_end_s": 60, "caption": "" } ],
   "reflection": "",
+  "waveform": { "source": "file", "rate_hz": 20, "peaks": [0.02, 0.11, 0.34] },
   "audio_features": null
 }
 ```
 
 ## Build order
 1. ✅ This concept doc
-2. ✅ Marker page (`mark.html`): Start / New pass, tap or hold MARK, energy, saved in the browser, export
+2. ✅ Design system (`docs/design-system.html`) and Marker (`mark.html`): full-screen score with waveform, marks lane and continuous energy; space marks, trackpad swipe sets energy
 3. Session editor: fill in moments, codebook chips, attach photos, export folder
 4. Track strip + gallery + index script + GitHub Pages
 5. First real session from a recent sketch

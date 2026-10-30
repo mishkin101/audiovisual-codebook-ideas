@@ -6,7 +6,7 @@
     if (seconds == null) return "";
     const s = Math.max(0, seconds);
     const m = Math.floor(s / 60);
-    return m + ":" + pad(Math.floor(s % 60)) + "." + Math.floor((s % 1) * 10);
+    return pad(m) + ":" + pad(Math.floor(s % 60)) + "." + Math.floor((s % 1) * 10);
   }
 
   function slug(text) {
@@ -35,7 +35,7 @@
   // A blank moment with every detail field present, so the editor can fill them in later.
   function newMoment(fields) {
     return Object.assign({
-      n: 0, pass: 1, t_s: 0, t_end_s: null, energy: null,
+      n: 0, pass: 1, kind: "tap", t_s: 0, t_end_s: null, energy: null,
       tags: [], colors: [], motion: "", texture: "", other: "", note: "", sketch: null
     }, fields);
   }

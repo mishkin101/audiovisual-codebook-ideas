@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Journal Design System</title>
+  <link rel="stylesheet" href="../assets/style.css">
+  <style>
+    body { height: auto; }
+    .page { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
+    nav {
+      position: sticky; top: 0; height: 100vh;
+      border-right: var(--hair) solid var(--rule);
+      padding: var(--u3) var(--u2);
+      display: flex; flex-direction: column; gap: var(--u);
+    }
+    nav .title { font: var(--t-title); color: var(--live); margin-bottom: var(--u3); }
+    nav a { border: none; font: var(--t-label); letter-spacing: var(--track-label); text-transform: uppercase; color: var(--mid); }
+    nav a:hover { color: var(--live); }
+    nav .foot { margin-top: auto; }
+    main { min-width: 0; }
+    section { border-bottom: var(--hair) solid var(--rule); padding: var(--u6) var(--u4); }
+    section > header { display: grid; grid-template-columns: 64px 1fr; align-items: baseline; margin-bottom: var(--u4); }
+    section > header .num { font: var(--t-data); color: var(--dim); }
+    h2 { font: var(--t-title); color: var(--live); margin: 0; text-transform: uppercase; letter-spacing: 0.08em; }
+    .lede { grid-column: 2; color: var(--mid); margin: var(--u) 0 0; max-width: 64ch; }
+    .grid { display: grid; gap: 0; border-top: var(--hair) solid var(--rule); border-left: var(--hair) solid var(--rule); }
+    .grid > * { border-right: var(--hair) solid var(--rule); border-bottom: var(--hair) solid var(--rule); padding: var(--u2); }
+    .cols-2 { grid-template-columns: repeat(2, 1fr); }
+    .cols-3 { grid-template-columns: repeat(3, 1fr); }
+    .cols-4 { grid-template-columns: repeat(4, 1fr); }
+    .cols-7 { grid-template-columns: repeat(7, 1fr); }
+    .rules { list-style: none; margin: 0; padding: 0; counter-reset: r; }
+    .rules li { counter-increment: r; display: grid; grid-template-columns: 64px 1fr; padding: var(--u2) 0; border-top: var(--hair) solid var(--rule); }
+    .rules li::before { content: counter(r, decimal-leading-zero); color: var(--dim); font: var(--t-data); }
+    .rules li strong { color: var(--live); font-weight: 400; }
+    .swatch { height: 96px; border: var(--hair) solid var(--rule); margin-bottom: var(--u2); }
+    .meta { display: flex; flex-direction: column; gap: 6px; }
+    .type-row { display: grid; grid-template-columns: 160px 1fr 200px; align-items: baseline; padding: var(--u3) 0; border-top: var(--hair) solid var(--rule); gap: var(--u2); }
+    .spec { font: var(--t-data); color: var(--dim); }
+    .unit-demo { display: flex; align-items: flex-end; gap: var(--u2); }
+    .unit-demo div { background: var(--slab); border: var(--hair) solid var(--mid); }
+    svg { display: block; width: 100%; height: auto; }
+    .cap { margin-top: var(--u2); }
+    .controls-row { display: flex; flex-wrap: wrap; gap: var(--u2); align-items: center; }
+    .never { color: var(--dim); text-decoration: line-through; }
+    @media (max-width: 820px) {
+      .page { grid-template-columns: 1fr; }
+      nav { position: static; height: auto; border-right: none; border-bottom: var(--hair) solid var(--rule); flex-direction: row; flex-wrap: wrap; gap: var(--u2); }
+      nav .title { width: 100%; margin: 0; }
+      nav .foot { margin: 0; }
+      section { padding: var(--u4) var(--u2); }
+      section > header { grid-template-columns: 40px 1fr; }
+      .cols-4, .cols-7 { grid-template-columns: repeat(2, 1fr); }
+      .cols-3 { grid-template-columns: 1fr; }
+      .type-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+  <nav>
+    <div class="title">LISTENING<br>JOURNAL<br><span class="dimmed">DESIGN SYSTEM</span></div>
+    <a href="#principles">00 Principles</a>
+    <a href="#ink">01 Ink</a>
+    <a href="#type">02 Type</a>
+    <a href="#space">03 Space &amp; line</a>
+    <a href="#glyphs">04 Glyphs</a>
+    <a href="#score">05 The score</a>
+    <a href="#controls">06 Controls</a>
+    <a href="#layout">07 Layout</a>
+    <div class="foot"><a href="../mark.html">Open marker →</a></div>
+  </nav>
+
+  <main>
+    <section id="principles">
+      <header><span class="num">00</span><h2>Principles</h2>
+        <p class="lede">The interface is a quiet drawing board for what you see. Your visuals bring the color. The interface never does.</p></header>
+      <ol class="rules">
+        <li><span><strong>Black ground.</strong> Every surface starts as void. Nothing glows that doesn't need to.</span></li>
+        <li><span><strong>Monochrome only.</strong> Seven steps from black to white. White is reserved for the live moment.</span></li>
+        <li><span><strong>Structure is visible.</strong> Hairline rules show the grid, like an architectural drawing. No decoration hides it.</span></li>
+        <li><span><strong>Sharp.</strong> Square corners, hard edges. <span class="never">Radius, shadow, blur, gradient, transition</span>.</span></li>
+        <li><span><strong>One typeface.</strong> System monospace in a few fixed sizes. Labels are small capitals, data is tabular.</span></li>
+        <li><span><strong>Full bleed.</strong> Working pages use the entire display. Chrome recedes while listening.</span></li>
+        <li><span><strong>Time runs left to right.</strong> Everything that happens in a track is drawn on one shared horizontal axis.</span></li>
+      </ol>
+    </section>
+
+    <section id="ink">
+      <header><span class="num">01</span><h2>Ink</h2>
+        <p class="lede">Seven tokens, defined in <span class="data">assets/style.css</span>. Use the role, never a raw hex value.</p></header>
+      <div class="grid cols-7">
+        <div><div class="swatch" style="background:var(--void)"></div><div class="meta"><span class="label">--void</span><span class="data">#000000</span><span class="spec">ground</span></div></div>
+        <div><div class="swatch" style="background:var(--slab)"></div><div class="meta"><span class="label">--slab</span><span class="data">#0D0D0D</span><span class="spec">filled areas</span></div></div>
+        <div><div class="swatch" style="background:var(--rule)"></div><div class="meta"><span class="label">--rule</span><span class="data">#262626</span><span class="spec">grid, borders</span></div></div>
+        <div><div class="swatch" style="background:var(--dim)"></div><div class="meta"><span class="label">--dim</span><span class="data">#4D4D4D</span><span class="spec">inactive, past passes</span></div></div>
+        <div><div class="swatch" style="background:var(--mid)"></div><div class="meta"><span class="label">--mid</span><span class="data">#8C8C8C</span><span class="spec">labels, waveform at rest</span></div></div>
+        <div><div class="swatch" style="background:var(--bright)"></div><div class="meta"><span class="label">--bright</span><span class="data">#D9D9D9</span><span class="spec">text, played audio</span></div></div>
+        <div><div class="swatch" style="background:var(--live)"></div><div class="meta"><span class="label">--live</span><span class="data">#FFFFFF</span><span class="spec">the now only</span></div></div>
+      </div>
+    </section>
+
+    <section id="type">
+      <header><span class="num">02</span><h2>Type</h2>
+        <p class="lede">System monospace (SF Mono on a Mac). No web fonts, so pages work offline. Five sizes, nothing in between.</p></header>
+      <div class="type-row"><span class="label">Display</span><span class="display">02:41.7</span><span class="spec">48 / 300 / -2% · clock</span></div>
+      <div class="type-row"><span class="label">Title</span><span style="font:var(--t-title);color:var(--live)">TEARDROP — MASSIVE ATTACK</span><span class="spec">16 / 400 · track, headings</span></div>
+      <div class="type-row"><span class="label">Body</span><span>Rising silver grain, then a slow dark fold from the left.</span><span class="spec">13 / 400 / 1.5 · notes</span></div>
+      <div class="type-row"><span class="label">Data</span><span class="data">#07 · 01:12.4 → 01:19.0 · E 0.64</span><span class="spec">12 / 400 / tabular · values</span></div>
+      <div class="type-row"><span class="label">Label</span><span class="label">Waveform · Marks · Energy</span><span class="spec">10 / 500 / caps / +16% · names</span></div>
+    </section>
+
+    <section id="space">
+      <header><span class="num">03</span><h2>Space &amp; line</h2>
+        <p class="lede">An 8px unit. Lines are 1px hairlines. The only 2px line on any page is the playhead.</p></header>
+      <div class="grid cols-2">
+        <div>
+          <div class="unit-demo">
+            <div style="width:8px;height:8px"></div><div style="width:16px;height:16px"></div><div style="width:24px;height:24px"></div><div style="width:32px;height:32px"></div><div style="width:48px;height:48px"></div>
+          </div>
+          <p class="label cap">8 · 16 · 24 · 32 · 48</p>
+        </div>
+        <div>
+          <svg viewBox="0 0 320 64" aria-hidden="true">
+            <line x1="0" y1="12" x2="320" y2="12" stroke="var(--rule)" stroke-width="1"/>
+            <line x1="0" y1="32" x2="320" y2="32" stroke="var(--mid)" stroke-width="1"/>
+            <line x1="0" y1="52" x2="320" y2="52" stroke="var(--live)" stroke-width="2"/>
+          </svg>
+          <p class="label cap">Rule · hairline · playhead (2px)</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="glyphs">
+      <header><span class="num">04</span><h2>Glyphs</h2>
+        <p class="lede">The vocabulary of the marks lane. Each one is readable at a glance without color.</p></header>
+      <div class="grid cols-4">
+        <div>
+          <svg viewBox="0 0 120 80" aria-hidden="true"><line x1="60" y1="8" x2="60" y2="72" stroke="var(--live)" stroke-width="1"/><text x="64" y="16" fill="var(--mid)" font-family="ui-monospace,Menlo,monospace" font-size="9">03</text></svg>
+          <p class="label cap">Tap · instant</p><p class="spec">tap space · 1px full-height line</p>
+        </div>
+        <div>
+          <svg viewBox="0 0 120 80" aria-hidden="true">
+            <defs><pattern id="h" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="var(--mid)" stroke-width="1"/></pattern></defs>
+            <rect x="24" y="8" width="72" height="64" fill="var(--slab)"/><rect x="24" y="8" width="72" height="64" fill="url(#h)"/>
+            <line x1="24" y1="8" x2="24" y2="72" stroke="var(--live)"/><line x1="96" y1="8" x2="96" y2="72" stroke="var(--bright)"/>
+          </svg>
+          <p class="label cap">Range · held</p><p class="spec">hold space · section hatch</p>
+        </div>
+        <div>
+          <svg viewBox="0 0 120 80" aria-hidden="true"><line x1="60" y1="8" x2="60" y2="72" stroke="var(--live)"/><rect x="56" y="8" width="8" height="8" fill="var(--live)"/></svg>
+          <p class="label cap">Alt · accent</p><p class="spec">A key · line + square head</p>
+        </div>
+        <div>
+          <svg viewBox="0 0 120 80" aria-hidden="true">
+            <path d="M0 60 L20 56 L36 40 L52 44 L70 22 L90 26 L120 14 L120 80 L0 80 Z" fill="var(--slab)"/>
+            <polyline points="0,60 20,56 36,40 52,44 70,22 90,26 120,14" fill="none" stroke="var(--bright)"/>
+          </svg>
+          <p class="label cap">Energy · continuous</p><p class="spec">two-finger swipe · 0.00 to 1.00</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="score">
+      <header><span class="num">05</span><h2>The score</h2>
+        <p class="lede">A track drawn like a musical score: waveform, ruler, marks and energy share one time axis. Past passes sit underneath in --dim.</p></header>
+      <svg id="scoreSvg" viewBox="0 0 960 360" aria-label="Example score: waveform, ruler, marks and energy"></svg>
+    </section>
+
+    <section id="controls">
+      <header><span class="num">06</span><h2>Controls</h2>
+        <p class="lede">Rectangular, hairline, capitals. Active state inverts to white. Fields are a single underline.</p></header>
+      <div class="grid cols-2">
+        <div class="controls-row">
+          <button class="btn">Start pass</button>
+          <button class="btn on">Recording</button>
+          <button class="btn" disabled>Stop</button>
+        </div>
+        <div class="controls-row">
+          <input class="field" placeholder="Title" style="width:160px">
+          <input class="field" value="Massive Attack" style="width:160px">
+        </div>
+      </div>
+    </section>
+
+    <section id="layout">
+      <header><span class="num">07</span><h2>Layout · Marker</h2>
+        <p class="lede">Full display. Header and footer are 44px and fade to --dim while a pass runs. The score fills everything between.</p></header>
+      <svg viewBox="0 0 960 420" aria-label="Marker layout diagram">
+        <g font-family="ui-monospace,Menlo,monospace" font-size="10" letter-spacing="1.5" fill="var(--mid)">
+          <rect x="0.5" y="0.5" width="959" height="419" fill="none" stroke="var(--rule)"/>
+          <line x1="0" y1="44" x2="960" y2="44" stroke="var(--rule)"/>
+          <text x="16" y="27">HEADER · TRACK · ARTIST · MOOD · PRIVATE</text><text x="944" y="27" text-anchor="end">PASS · CLOCK · ENERGY</text>
+          <rect x="0" y="44" width="960" height="150" fill="var(--slab)"/>
+          <text x="16" y="64">WAVEFORM · 40%</text>
+          <line x1="0" y1="194" x2="960" y2="194" stroke="var(--rule)"/>
+          <text x="16" y="212">RULER · 24</text>
+          <line x1="0" y1="218" x2="960" y2="218" stroke="var(--rule)"/>
+          <text x="16" y="238">MARKS · 80</text>
+          <line x1="0" y1="298" x2="960" y2="298" stroke="var(--rule)"/>
+          <text x="16" y="318">ENERGY · REMAINDER</text>
+          <line x1="0" y1="376" x2="960" y2="376" stroke="var(--rule)"/>
+          <text x="16" y="402">FOOTER · SOURCE · FILE · INPUT · SYSTEM</text><text x="944" y="402" text-anchor="end">START · STOP · EXPORT · TEST</text>
+          <line x1="430" y1="44" x2="430" y2="376" stroke="var(--live)" stroke-width="2"/>
+        </g>
+      </svg>
+    </section>
+  </main>
+</div>
+
+<script>
+// Draws the example score from a seeded fake track so the spec shows real proportions.
+(function () {
+  const svg = document.getElementById("scoreSvg");
+  const W = 960, NS = "http://www.w3.org/2000/svg";
+  const L = { wave: [0, 150], ruler: [150, 174], marks: [174, 254], energy: [254, 360] };
+  const el = (tag, attrs) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); svg.appendChild(e); return e; };
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const dur = 240, x = (t) => (t / dur) * W, now = 104;
+
+  el("rect", { x: 0, y: 0, width: W, height: 150, fill: "var(--slab)" });
+  const mid = 75;
+  for (let i = 0; i < W; i += 3) {
+    const env = 0.25 + 0.6 * Math.abs(Math.sin(i / 140)) * (0.6 + 0.4 * rnd());
+    const h = env * 66;
+    el("line", { x1: i + 0.5, y1: mid - h, x2: i + 0.5, y2: mid + h, stroke: i < x(now) ? "var(--bright)" : "var(--mid)", "stroke-width": 1 });
+  }
+  [150, 174, 254].forEach((y) => el("line", { x1: 0, y1: y + 0.5, x2: W, y2: y + 0.5, stroke: "var(--rule)" }));
+  for (let t = 0; t <= dur; t += 10) {
+    const major = t % 30 === 0;
+    el("line", { x1: x(t) + 0.5, y1: 150, x2: x(t) + 0.5, y2: major ? 160 : 155, stroke: "var(--dim)" });
+    if (major && t < dur) { const tx = el("text", { x: x(t) + 4, y: 168, fill: "var(--dim)", "font-size": 9, "font-family": "ui-monospace,Menlo,monospace" }); tx.textContent = Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0"); }
+  }
+  const defs = el("defs", {});
+  defs.innerHTML = '<pattern id="h2" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="var(--mid)" stroke-width="1"/></pattern>';
+  const [my0, my1] = L.marks;
+  // past pass, dimmed
+  [22, 61, 140, 188].forEach((t) => el("line", { x1: x(t) + 0.5, y1: my0 + 40, x2: x(t) + 0.5, y2: my1, stroke: "var(--dim)" }));
+  // current pass
+  const tap = (t, n) => { el("line", { x1: x(t) + 0.5, y1: my0, x2: x(t) + 0.5, y2: my1, stroke: "var(--live)" }); const tx = el("text", { x: x(t) + 4, y: my0 + 12, fill: "var(--mid)", "font-size": 9, "font-family": "ui-monospace,Menlo,monospace" }); tx.textContent = String(n).padStart(2, "0"); };
+  tap(14, 1); tap(31, 2);
+  el("rect", { x: x(44), y: my0, width: x(66) - x(44), height: 80, fill: "url(#h2)" });
+  el("line", { x1: x(44) + 0.5, y1: my0, x2: x(44) + 0.5, y2: my1, stroke: "var(--live)" });
+  el("line", { x1: x(66) + 0.5, y1: my0, x2: x(66) + 0.5, y2: my1, stroke: "var(--bright)" });
+  tap(79, 4);
+  el("rect", { x: x(79) - 4, y: my0, width: 8, height: 8, fill: "var(--live)" });
+  tap(92, 5);
+  // energy
+  const [ey0, ey1] = L.energy, eh = ey1 - ey0 - 12;
+  const pts = [[0, .3], [12, .32], [30, .5], [44, .74], [66, .7], [80, .45], [92, .58], [now, .62]];
+  const past = [[0, .2], [40, .4], [90, .66], [150, .5], [200, .8], [240, .6]];
+  const toP = (a) => a.map(([t, e]) => x(t).toFixed(1) + "," + (ey1 - 4 - e * eh).toFixed(1)).join(" ");
+  el("polyline", { points: toP(past), fill: "none", stroke: "var(--dim)" });
+  el("polygon", { points: toP(pts) + " " + x(now) + "," + ey1 + " 0," + ey1, fill: "var(--slab)" });
+  el("polyline", { points: toP(pts), fill: "none", stroke: "var(--bright)" });
+  // playhead
+  el("line", { x1: x(now), y1: 0, x2: x(now), y2: 360, stroke: "var(--live)", "stroke-width": 2 });
+  [["WAVEFORM", 16], ["MARKS", my0 + 16], ["ENERGY", ey0 + 16]].forEach(([t, y]) => { const tx = el("text", { x: W - 12, y, fill: "var(--mid)", "font-size": 9, "letter-spacing": 1.5, "text-anchor": "end", "font-family": "ui-monospace,Menlo,monospace" }); tx.textContent = t; });
+})();
+</script>
+</body>
+</html>

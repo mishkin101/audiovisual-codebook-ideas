@@ -4,7 +4,8 @@ A public journal of what I see when I hear music: color, motion, texture, and en
 
 Paper sketches come first. This repo adds **time**: one tap in the moment to mark *when* something shifts, then details and sketch photos added later, so each listen can be replayed as a timeline.
 
-- 🎧 [Marker](mark.html): tap while listening
+- 🎧 [Marker](mark.html): space bar marks, trackpad swipe sets energy
+- ◼️ [Design system](docs/design-system.html)
 - 📄 [Concept](docs/concept.md)
 - 🗒️ [Prompts and early notes](prompts/)
 

@@ -2,351 +2,614 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Listening Marker</title>
   <link rel="stylesheet" href="assets/style.css">
   <style>
-    .timer { font-variant-numeric: tabular-nums; font-size: 2.4rem; font-weight: 600; margin: 2px 0 10px; }
-    .timer .pass { font-size: 0.9rem; font-weight: 500; color: var(--muted); display: block; }
+    body { display: grid; grid-template-rows: var(--bar) 1fr var(--bar); overflow: hidden; user-select: none; -webkit-user-select: none; }
+    .bar { display: flex; align-items: center; gap: var(--u2); padding: 0 var(--u2); min-width: 0; overflow: hidden; }
+    header.bar { border-bottom: var(--hair) solid var(--rule); }
+    footer.bar { border-top: var(--hair) solid var(--rule); }
+    .bar .push { margin-left: auto; }
+    .grow { flex: 1; min-width: 0; }
+    .readout { display: flex; align-items: baseline; gap: var(--u2); white-space: nowrap; }
+    #clock { font: var(--t-title); color: var(--live); min-width: 9ch; text-align: right; }
+    #level { width: 64px; height: 6px; border: var(--hair) solid var(--rule); position: relative; flex: none; }
+    #level i { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--bright); }
+    #status { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #device { width: 180px; flex: none; }
+    body.running .bar { opacity: 0.35; }
+    body.running .bar:hover { opacity: 1; }
 
-    .energy { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
-    .energy button { width: 48px; height: 44px; font-size: 1.3rem; padding: 0; }
-    .energy .level { min-width: 92px; text-align: center; font-variant-numeric: tabular-nums; }
-    .dots { letter-spacing: 3px; }
-
-    #mark {
-      display: block;
-      width: 100%;
-      min-height: 38vh;
-      margin: 0 0 14px;
-      border-radius: 22px;
-      font-size: 1.8rem;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      background: var(--accent);
-      color: var(--accent-text);
-      border: none;
-      user-select: none;
-      -webkit-user-select: none;
-      -webkit-touch-callout: none;
-      touch-action: manipulation;
-      transition: transform 80ms ease, background 120ms ease;
+    #stage { position: relative; min-height: 0; cursor: crosshair; }
+    body.running.locked #stage { cursor: none; }
+    #score { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+    #hint {
+      position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+      text-align: center; pointer-events: none; line-height: 2.4;
+      background: var(--void); padding: var(--u2) var(--u3); border: var(--hair) solid var(--rule);
     }
-    #mark small { display: block; font-size: 0.85rem; font-weight: 500; letter-spacing: 0; opacity: 0.85; margin-top: 6px; }
-    #mark:active { transform: scale(0.985); }
-    #mark.holding { background: var(--hold); }
-    #mark:disabled { opacity: 0.35; }
 
-    .marks { list-style: none; margin: 0; padding: 0; }
-    .marks li {
-      display: flex; align-items: center; gap: 10px;
-      padding: 8px 0; border-top: 1px solid var(--line);
-      font-variant-numeric: tabular-nums;
+    #test {
+      position: absolute; inset: 0; background: var(--void); display: none;
+      grid-template-columns: repeat(4, 1fr); grid-template-rows: auto 1fr;
     }
-    .marks li:first-child { border-top: none; }
-    .marks .num { font-weight: 700; min-width: 2.6em; }
-    .marks .when { flex: 1; }
-    .marks .del { padding: 4px 10px; color: var(--muted); }
-    .check { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: var(--text); margin: 2px 0 0; }
-    .check input { width: auto; margin: 0; }
-    .actions { display: flex; flex-wrap: wrap; gap: 10px; }
-    .status { min-height: 1.4em; margin: 8px 0 0; }
-    details summary { cursor: pointer; font-weight: 600; }
-    details[open] summary { margin-bottom: 12px; }
+    #test.open { display: grid; }
+    #test .intro { grid-column: 1 / -1; padding: var(--u3) var(--u2); border-bottom: var(--hair) solid var(--rule); display: flex; gap: var(--u3); align-items: baseline; }
+    #test .cell { border-right: var(--hair) solid var(--rule); padding: var(--u3) var(--u2); display: flex; flex-direction: column; gap: var(--u2); min-width: 0; }
+    #test .cell:last-child { border-right: none; }
+    #test .big { font: var(--t-display); color: var(--dim); }
+    #test .big.hot { color: var(--live); }
+    #test .meter { height: 120px; border: var(--hair) solid var(--rule); position: relative; }
+    #test .meter i { position: absolute; left: 0; right: 0; bottom: 50%; height: 1px; background: var(--live); }
+    #test .meter::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; border-top: var(--hair) dashed var(--rule); }
   </style>
 </head>
 <body>
-<main>
-  <h1>Listening Marker</h1>
+  <header class="bar">
+    <input class="field" id="title" placeholder="Title" autocomplete="off" style="width: 22%">
+    <input class="field" id="artist" placeholder="Artist" autocomplete="off" style="width: 16%">
+    <input class="field" id="moodBefore" placeholder="Mood before" autocomplete="off" style="width: 16%">
+    <button class="btn" id="privateBtn" title="Private sessions are saved to private/, which git ignores">Private</button>
+    <div class="readout push">
+      <span class="label" id="passLabel">No pass</span>
+      <span class="label">E <span class="data" id="energyOut">0.50</span></span>
+      <span id="clock">00:00.0</span>
+    </div>
+  </header>
 
-  <details class="card" id="trackCard" open>
-    <summary id="trackSummary">Track</summary>
-    <label for="title">Title</label>
-    <input id="title" autocomplete="off">
-    <label for="artist">Artist</label>
-    <input id="artist" autocomplete="off">
-    <div class="row">
-      <div>
-        <label for="source">Source</label>
-        <select id="source">
-          <option value="spotify">Spotify</option>
-          <option value="youtube">YouTube</option>
-          <option value="local">Local file</option>
-          <option value="other">Other</option>
-        </select>
+  <div id="stage">
+    <canvas id="score"></canvas>
+    <div id="hint" class="label"></div>
+
+    <div id="test">
+      <div class="intro">
+        <span class="label" style="color: var(--live)">Input test</span>
+        <span class="label">Try each gesture, then try them at the same time. Nothing is recorded. T to close.</span>
       </div>
-      <div>
-        <label for="url">Link (optional)</label>
-        <input id="url" inputmode="url" autocomplete="off">
+      <div class="cell">
+        <span class="label">Two-finger swipe</span>
+        <div class="meter"><i id="tSwipeBar"></i></div>
+        <span class="data" id="tSwipe">0 events</span>
+      </div>
+      <div class="cell">
+        <span class="label">Space · tap / hold</span>
+        <span class="big" id="tClickState">UP</span>
+        <span class="data" id="tClick">0 presses · last hold 0.00s</span>
+      </div>
+      <div class="cell">
+        <span class="label">A · alt mark</span>
+        <span class="big" id="tAltState">—</span>
+        <span class="data" id="tAlt">0 presses</span>
+      </div>
+      <div class="cell">
+        <span class="label">Together</span>
+        <span class="big" id="tBothState">—</span>
+        <span class="data" id="tBoth">swipe while space held: 0<br>space while swiping: 0</span>
       </div>
     </div>
-    <label for="moodBefore">Mood before (free words, optional)</label>
-    <input id="moodBefore" autocomplete="off">
-    <label class="check"><input type="checkbox" id="private"> Private session (kept off the public repo)</label>
-  </details>
+  </div>
 
-  <section class="card">
-    <div class="timer"><span class="pass" id="passLabel">No pass yet</span><span id="clock">0:00.0</span></div>
-    <div class="actions">
-      <button class="primary" id="startBtn">Start pass</button>
-      <button id="stopBtn" disabled>Stop pass</button>
-    </div>
-    <div class="energy">
-      <span class="small muted">Energy</span>
-      <button id="energyDown" aria-label="Energy down" disabled>−</button>
-      <span class="level"><span class="dots" id="energyDots">—</span></span>
-      <button id="energyUp" aria-label="Energy up" disabled>+</button>
-    </div>
-  </section>
-
-  <button id="mark" disabled>MARK<small>tap = instant · hold = range</small></button>
-
-  <section class="card">
-    <div class="actions" style="justify-content: space-between; align-items: center;">
-      <strong>Marks <span class="muted" id="markCount"></span></strong>
-      <button id="undoBtn" disabled>Undo last</button>
-    </div>
-    <ul class="marks" id="marks"></ul>
-    <p class="small muted" id="emptyMarks">Marks appear here. Write their numbers next to your sketches.</p>
-  </section>
-
-  <section class="card">
-    <label for="moodAfter">Mood after (free words, optional)</label>
-    <input id="moodAfter" autocomplete="off">
-    <div class="actions">
-      <button class="primary" id="downloadBtn">Download session.json</button>
-      <button id="copyBtn">Copy</button>
-      <button id="resetBtn">Start fresh</button>
-    </div>
-    <p class="small muted status" id="status"></p>
-  </section>
-
-  <p class="small muted">Keyboard: space = mark (hold for a range), ↑ ↓ = energy. Saved in this browser as you go.</p>
-</main>
+  <footer class="bar">
+    <span class="label">Source</span>
+    <button class="btn" id="fileBtn">File</button>
+    <button class="btn" id="inputBtn">Input</button>
+    <select class="field" id="device" hidden></select>
+    <button class="btn" id="systemBtn">System</button>
+    <div id="level" title="Input level"><i></i></div>
+    <span class="label grow" id="status"></span>
+    <input class="field" id="moodAfter" placeholder="Mood after" autocomplete="off" style="width: 14%">
+    <button class="btn" id="startBtn">Start</button>
+    <button class="btn" id="stopBtn" disabled>Stop</button>
+    <button class="btn" id="exportBtn">Export</button>
+    <button class="btn" id="resetBtn">Reset</button>
+    <button class="btn" id="testBtn">Test</button>
+    <input type="file" id="fileInput" accept="audio/*" hidden>
+  </footer>
 
 <script src="assets/journal.js"></script>
 <script>
 (function () {
   const J = window.Journal;
   const KEY = "journal.marker.current";
-  const HOLD_MS = 400;
+  const HOLD_MS = 300;
+  const RATE = 20;              // waveform samples per second
+  const SWIPE_PER_UNIT = 800;   // pixels of scroll for the full 0-1 energy range
   const $ = (id) => document.getElementById(id);
+  const css = getComputedStyle(document.documentElement);
+  const C = {};
+  ["void", "slab", "rule", "dim", "mid", "bright", "live"].forEach((k) => C[k] = css.getPropertyValue("--" + k).trim());
+  const FONT = css.getPropertyValue("--mono");
 
+  // ---------- session state ----------
   function blankSession() {
     return {
       id: "", date: J.today(), private: false,
       track: { title: "", artist: "", source: "spotify", url: "", duration_s: null },
       context: { time_of_day: "", place: "", mood_before: "", mood_after: "" },
-      passes: [], moments: [], sketches: [], reflection: "", audio_features: null,
-      _marker: { running: false, startMs: null, energy: null, nextN: 1 }
+      passes: [], moments: [], sketches: [], reflection: "",
+      waveform: { source: null, rate_hz: RATE, peaks: [] },
+      audio_features: null,
+      _marker: { running: false, startMs: null, energy: 0.5, nextN: 1, lastT: 0, invert: false }
     };
   }
-
   let s = J.store.get(KEY) || blankSession();
-  let hold = null;      // { t, timer, isRange } while MARK is pressed
-  let wakeLock = null;
+  if (!s.waveform) s.waveform = { source: null, rate_hz: RATE, peaks: [] };
+  if (typeof s._marker.energy !== "number" || s._marker.energy > 1) s._marker.energy = 0.5;
 
-  const fields = {
-    title: ["track", "title"], artist: ["track", "artist"], source: ["track", "source"],
-    url: ["track", "url"], moodBefore: ["context", "mood_before"], moodAfter: ["context", "mood_after"]
-  };
+  // A reload ends a running pass where it was last saved (the audio can't survive a reload).
+  if (s._marker.running) {
+    const p = s.passes[s.passes.length - 1];
+    if (p) p.ended_s = s._marker.lastT;
+    s._marker.running = false;
+  }
+
+  const audio = { mode: "none", el: new Audio(), ctx: null, analyser: null, stream: null, buf: null, level: 0 };
+  let hold = null;          // { t, range, timer }
+  let recordFrom = 0;       // first waveform index this pass may write (live mode)
+  let dirty = true;
+  let lockLost = false;     // cursor capture was held during this pass and released (Esc)
+
+  const round = (x, d = 1) => Math.round(x * 10 ** d) / 10 ** d;
+  const clamp = (x) => Math.min(1, Math.max(0, x));
+  const pass = () => s.passes[s.passes.length - 1];
 
   function save() {
     s.id = J.sessionId(s.date, s.track);
-    if (!J.store.set(KEY, s)) setStatus("Couldn't save in this browser. Download before closing.");
+    s._marker.lastT = round(now());
+    J.store.set(KEY, s);
   }
 
-  function currentPass() { return s.passes[s.passes.length - 1]; }
-  function elapsed() { return s._marker.running ? (Date.now() - s._marker.startMs) / 1000 : 0; }
-
-  function timeOfDay(h) {
-    return h < 5 ? "night" : h < 12 ? "morning" : h < 17 ? "afternoon" : h < 21 ? "evening" : "night";
+  function now() {
+    if (!s._marker.running) return pass() ? pass().ended_s || 0 : 0;
+    if (audio.mode === "file") return audio.el.currentTime;
+    return (Date.now() - s._marker.startMs) / 1000;
   }
 
-  // --- passes ---
+  function viewDur() {
+    let maxT = now();
+    s.passes.forEach((p) => { if (p.ended_s) maxT = Math.max(maxT, p.ended_s); });
+    if (s.track.duration_s) return Math.max(s.track.duration_s, maxT);
+    return Math.max(240, maxT * 1.05);
+  }
+
+  function setStatus(text) { $("status").textContent = text; }
+
+  // ---------- audio sources ----------
+  function ensureCtx() {
+    if (!audio.ctx) audio.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audio.ctx.state === "suspended") audio.ctx.resume();
+    return audio.ctx;
+  }
+
+  function stopStream() {
+    if (audio.stream) audio.stream.getTracks().forEach((t) => t.stop());
+    audio.stream = null; audio.analyser = null; audio.level = 0;
+  }
+
+  async function loadFile(file) {
+    stopStream();
+    setStatus("Reading " + file.name + "…");
+    try {
+      const ctx = ensureCtx();
+      const buffer = await ctx.decodeAudioData(await file.arrayBuffer());
+      const n = Math.ceil(buffer.duration * RATE), per = buffer.sampleRate / RATE;
+      const chans = [...Array(buffer.numberOfChannels).keys()].map((c) => buffer.getChannelData(c));
+      const peaks = new Array(n);
+      for (let i = 0; i < n; i++) {
+        let m = 0;
+        const a = Math.floor(i * per), b = Math.min(chans[0].length, Math.floor((i + 1) * per));
+        for (const ch of chans) for (let j = a; j < b; j += 4) { const v = Math.abs(ch[j]); if (v > m) m = v; }
+        peaks[i] = round(m, 3);
+      }
+      s.waveform = { source: "file", rate_hz: RATE, peaks };
+      s.track.duration_s = round(buffer.duration);
+      s.track.source = "local";
+      if (!s.track.title) { s.track.title = file.name.replace(/\.[^.]+$/, ""); $("title").value = s.track.title; }
+      audio.el.src = URL.createObjectURL(file);
+      audio.mode = "file";
+      setStatus("File · " + file.name + " · " + J.formatTime(buffer.duration));
+    } catch (e) {
+      setStatus("Couldn't read that file as audio.");
+    }
+    save(); renderBars(); dirty = true;
+  }
+
+  function attachStream(stream, label) {
+    stopStream();
+    const ctx = ensureCtx();
+    audio.stream = stream;
+    audio.analyser = ctx.createAnalyser();
+    audio.analyser.fftSize = 2048;
+    audio.buf = new Float32Array(audio.analyser.fftSize);
+    ctx.createMediaStreamSource(stream).connect(audio.analyser);
+    audio.mode = "live";
+    if (s.track.source === "local") s.track.source = "spotify";
+    setStatus(label);
+    renderBars();
+  }
+
+  const rawAudio = { echoCancellation: false, noiseSuppression: false, autoGainControl: false };
+
+  async function startInput(deviceId) {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: deviceId ? { ...rawAudio, deviceId: { exact: deviceId } } : rawAudio });
+      const devices = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === "audioinput");
+      const sel = $("device");
+      sel.innerHTML = "";
+      devices.forEach((d) => { const o = document.createElement("option"); o.value = d.deviceId; o.textContent = d.label || "Input"; sel.appendChild(o); });
+      const active = stream.getAudioTracks()[0].getSettings().deviceId;
+      if (active) sel.value = active;
+      sel.hidden = false;
+      attachStream(stream, "Input · " + (stream.getAudioTracks()[0].label || "microphone"));
+    } catch (e) {
+      setStatus("No access to audio input.");
+    }
+  }
+
+  async function startSystem() {
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: rawAudio, systemAudio: "include" });
+      if (!stream.getAudioTracks().length) {
+        stream.getTracks().forEach((t) => t.stop());
+        setStatus("No audio was shared. In the share dialog, turn on audio sharing.");
+        return;
+      }
+      $("device").hidden = true;
+      attachStream(stream, "System audio");
+    } catch (e) {
+      setStatus("System audio capture isn't available here.");
+    }
+  }
+
+  // Live capture: read the analyser each frame, keep the loudest sample per bucket.
+  function sampleLive() {
+    if (!audio.analyser) return;
+    audio.analyser.getFloatTimeDomainData(audio.buf);
+    let m = 0;
+    for (let i = 0; i < audio.buf.length; i++) { const v = Math.abs(audio.buf[i]); if (v > m) m = v; }
+    audio.level = m;
+    if (!s._marker.running) return;
+    const idx = Math.floor(now() * RATE), peaks = s.waveform.peaks;
+    if (idx < recordFrom) return;
+    while (peaks.length < idx) peaks.push(0);
+    peaks[idx] = round(Math.max(peaks[idx] || 0, m), 3);
+    s.waveform.source = "live";
+    dirty = true;
+  }
+
+  // ---------- passes ----------
   function startPass() {
-    const now = Date.now();
-    s.passes.push({ n: s.passes.length + 1, started: J.clockTime(now), ended_s: null, energy_log: [] });
-    if (!s.context.time_of_day) s.context.time_of_day = timeOfDay(new Date(now).getHours());
+    if (s._marker.running || test.open) return;
+    const t0 = Date.now();
+    s.passes.push({ n: s.passes.length + 1, started: J.clockTime(t0), ended_s: null, energy_log: [] });
+    if (!s.context.time_of_day) {
+      const h = new Date(t0).getHours();
+      s.context.time_of_day = h < 5 ? "night" : h < 12 ? "morning" : h < 17 ? "afternoon" : h < 21 ? "evening" : "night";
+    }
     s._marker.running = true;
-    s._marker.startMs = now;
-    if (s._marker.energy != null) currentPass().energy_log.push({ t_s: 0, energy: s._marker.energy });
-    $("trackCard").open = false;
-    requestWakeLock();
-    save(); render();
+    s._marker.startMs = t0;
+    recordFrom = s.waveform.source === "live" ? s.waveform.peaks.length : 0;
+    if (audio.mode === "file") { audio.el.currentTime = 0; audio.el.play(); }
+    pass().energy_log.push({ t_s: 0, energy: round(s._marker.energy, 3) });
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    lock();
+    save(); renderBars(); dirty = true;
   }
 
   function stopPass() {
-    if (hold) endHold();
-    currentPass().ended_s = round(elapsed());
-    s._marker.running = false;
-    s._marker.startMs = null;
-    releaseWakeLock();
-    save(); render();
-  }
-
-  // --- energy ---
-  function changeEnergy(delta) {
     if (!s._marker.running) return;
-    const cur = s._marker.energy == null ? 3 - delta : s._marker.energy;
-    const next = Math.min(5, Math.max(1, cur + delta));
-    s._marker.energy = next;
-    currentPass().energy_log.push({ t_s: round(elapsed()), energy: next });
-    save(); render();
+    if (hold) endHold();
+    pass().ended_s = round(now());
+    s._marker.running = false;
+    if (audio.mode === "file") audio.el.pause();
+    if (document.pointerLockElement) document.exitPointerLock();
+    lockLost = false;
+    save(); renderBars(); dirty = true;
   }
 
-  // --- marks ---
-  function round(x) { return Math.round(x * 10) / 10; }
+  function lock() {
+    try { const r = $("stage").requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (e) {}
+  }
+
+  // ---------- marks ----------
+  function addMark(kind, t, tEnd) {
+    s.moments.push(J.newMoment({
+      n: s._marker.nextN++, pass: pass().n, kind,
+      t_s: round(t), t_end_s: tEnd == null ? null : round(tEnd),
+      energy: round(s._marker.energy, 2)
+    }));
+    save(); renderBars(); dirty = true;
+  }
 
   function beginHold() {
     if (!s._marker.running || hold) return;
-    hold = { t: round(elapsed()), isRange: false };
-    hold.timer = setTimeout(() => { if (hold) { hold.isRange = true; render(); } }, HOLD_MS);
-    render();
+    hold = { t: now(), range: false };
+    hold.timer = setTimeout(() => { if (hold) { hold.range = true; dirty = true; } }, HOLD_MS);
   }
 
   function endHold() {
     if (!hold) return;
     clearTimeout(hold.timer);
-    const end = round(elapsed());
-    s.moments.push(J.newMoment({
-      n: s._marker.nextN++,
-      pass: currentPass().n,
-      t_s: hold.t,
-      t_end_s: hold.isRange ? end : null,
-      energy: s._marker.energy
-    }));
-    hold = null;
-    if (navigator.vibrate) navigator.vibrate(15);
-    save(); render();
+    const h = hold; hold = null;
+    if (h.range) addMark("range", h.t, now());
+    else addMark("tap", h.t, null);
   }
 
-  function cancelHold() { if (hold) endHold(); }
-
-  function deleteMark(n) {
-    s.moments = s.moments.filter((m) => m.n !== n);
-    save(); render();
+  // ---------- energy ----------
+  let energySaveTimer = null;
+  function nudgeEnergy(delta) {
+    s._marker.energy = clamp(s._marker.energy + delta);
+    if (s._marker.running) {
+      const t = round(now()), log = pass().energy_log, last = log[log.length - 1];
+      const e = round(s._marker.energy, 3);
+      if (last && t - last.t_s < 0.1) last.energy = e; else log.push({ t_s: t, energy: e });
+    }
+    $("energyOut").textContent = s._marker.energy.toFixed(2);
+    dirty = true;
+    clearTimeout(energySaveTimer);
+    energySaveTimer = setTimeout(save, 400);
   }
 
-  // --- export ---
-  function exportSession() {
-    const out = JSON.parse(JSON.stringify(s));
-    delete out._marker;
-    out.id = J.sessionId(out.date, out.track);
-    return JSON.stringify(out, null, 2);
+  // ---------- drawing ----------
+  const canvas = $("score"), g = canvas.getContext("2d");
+  let W = 0, H = 0, hatch = null;
+
+  function resize() {
+    const dpr = window.devicePixelRatio || 1;
+    W = canvas.clientWidth; H = canvas.clientHeight;
+    canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const p = document.createElement("canvas"); p.width = p.height = 6;
+    const pg = p.getContext("2d"); pg.strokeStyle = C.mid; pg.lineWidth = 1;
+    pg.beginPath(); pg.moveTo(0, 6); pg.lineTo(6, 0); pg.stroke();
+    hatch = g.createPattern(p, "repeat");
+    dirty = true;
   }
 
-  function setStatus(text) { $("status").textContent = text; }
-
-  // --- wake lock keeps the phone screen on during a pass ---
-  async function requestWakeLock() {
-    try { if ("wakeLock" in navigator) wakeLock = await navigator.wakeLock.request("screen"); } catch (e) {}
+  const px = (x) => Math.round(x) + 0.5;
+  function vline(x, y0, y1, color, w = 1) {
+    const xx = w === 1 ? px(x) : Math.round(x);
+    g.strokeStyle = color; g.lineWidth = w;
+    g.beginPath(); g.moveTo(xx, y0); g.lineTo(xx, y1); g.stroke();
   }
-  function releaseWakeLock() { try { wakeLock && wakeLock.release(); } catch (e) {} wakeLock = null; }
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible" && s._marker.running) requestWakeLock();
-  });
+  function hline(y, color) { g.strokeStyle = color; g.lineWidth = 1; g.beginPath(); g.moveTo(0, px(y)); g.lineTo(W, px(y)); g.stroke(); }
+  function label(text, x, y, color = C.mid) {
+    g.fillStyle = color; g.textAlign = "left"; g.textBaseline = "top";
+    g.font = "500 10px " + FONT;
+    if ("letterSpacing" in g) g.letterSpacing = "1.6px";
+    g.fillText(text.toUpperCase(), x, y);
+  }
 
-  // --- render ---
-  function render() {
-    const running = s._marker.running;
-    const pass = currentPass();
-    $("passLabel").textContent = pass ? "Pass " + pass.n + (running ? " · running" : " · stopped") : "No pass yet";
-    $("clock").textContent = J.formatTime(running ? elapsed() : pass ? pass.ended_s : 0);
-    $("startBtn").disabled = running;
-    $("startBtn").textContent = s.passes.length ? "New pass" : "Start pass";
-    $("stopBtn").disabled = !running;
-    $("energyDown").disabled = $("energyUp").disabled = !running;
-    const e = s._marker.energy;
-    $("energyDots").textContent = e == null ? "—" : "●".repeat(e) + "○".repeat(5 - e);
+  function draw() {
+    const dur = viewDur(), t = now(), X = (sec) => (sec / dur) * W;
+    const waveH = Math.round(H * 0.42), rulerY = waveH, marksY = waveH + 24, mH = 80, energyY = marksY + mH;
+    const current = pass() ? pass().n : 0;
+    g.fillStyle = C.void; g.fillRect(0, 0, W, H);
 
-    const mark = $("mark");
-    mark.disabled = !running;
-    mark.classList.toggle("holding", !!(hold && hold.isRange));
-    mark.firstChild.textContent = hold && hold.isRange ? "HOLDING" : "MARK";
-    mark.lastChild.textContent = hold && hold.isRange
-      ? "from " + J.formatTime(hold.t) + " · release to end"
-      : running ? "tap = instant · hold = range" : "start a pass first";
+    // waveform
+    g.fillStyle = C.slab; g.fillRect(0, 0, W, waveH);
+    const peaks = s.waveform.peaks, mid = waveH / 2;
+    if (peaks.length) {
+      let max = 0; for (const p of peaks) if (p > max) max = p;
+      const norm = max > 0 ? 1 / max : 0, amp = mid - 16;
+      for (let x = 0; x < W; x++) {
+        const a = Math.floor((x / W) * dur * RATE), b = Math.max(a + 1, Math.floor(((x + 1) / W) * dur * RATE));
+        let m = 0; for (let i = a; i < b && i < peaks.length; i++) if (peaks[i] > m) m = peaks[i];
+        if (!m) continue;
+        const h = Math.max(0.5, m * norm * amp);
+        vline(x, mid - h, mid + h, current && x < X(t) ? C.bright : C.mid);
+      }
+    } else {
+      hline(mid, C.rule);
+    }
+    label("Waveform" + (s.waveform.source ? " · " + s.waveform.source : ""), 16, 12);
 
-    const t = s.track;
-    $("trackSummary").textContent = t.title || t.artist ? "Track: " + [t.title, t.artist].filter(Boolean).join(" · ") : "Track";
+    // ruler
+    hline(rulerY, C.rule);
+    const step = dur > 900 ? 60 : dur > 360 ? 30 : 10, major = step * 3;
+    for (let sec = 0; sec <= dur; sec += step) {
+      const isMajor = sec % major === 0;
+      vline(X(sec), rulerY, rulerY + (isMajor ? 10 : 5), C.dim);
+      if (isMajor && X(sec) < W - 40) label(J.formatTime(sec).slice(0, 5), X(sec) + 4, rulerY + 12, C.dim);
+    }
 
-    const list = $("marks");
-    list.innerHTML = "";
-    s.moments.slice().reverse().forEach((m) => {
-      const li = document.createElement("li");
-      const range = m.t_end_s != null ? " → " + J.formatTime(m.t_end_s) : "";
-      li.innerHTML =
-        '<span class="num">#' + m.n + '</span>' +
-        '<span class="when">' + J.formatTime(m.t_s) + range +
-        ' <span class="small muted">· pass ' + m.pass + (m.energy ? " · energy " + m.energy : "") + '</span></span>';
-      const del = document.createElement("button");
-      del.className = "del"; del.textContent = "×"; del.setAttribute("aria-label", "Delete mark " + m.n);
-      del.onclick = () => deleteMark(m.n);
-      li.appendChild(del);
-      list.appendChild(li);
+    // marks: current pass full height in white, earlier passes half height in dim
+    hline(marksY, C.rule);
+    label("Marks", 16, marksY + 8);
+    const mBot = marksY + mH;
+    s.moments.forEach((m) => {
+      const own = m.pass === current, y0 = own ? marksY : marksY + mH / 2, col = own ? C.live : C.dim;
+      const x0 = X(m.t_s);
+      if (m.kind === "range") {
+        const x1 = X(m.t_end_s);
+        if (own) { g.fillStyle = hatch; g.fillRect(x0, y0, Math.max(1, x1 - x0), mBot - y0); }
+        vline(x0, y0, mBot, col); vline(x1, y0, mBot, own ? C.bright : C.dim);
+      } else {
+        vline(x0, y0, mBot, col);
+        if (m.kind === "alt") { g.fillStyle = col; g.fillRect(Math.round(x0) - 3, y0, 8, 8); }
+      }
+      if (own) label(String(m.n).padStart(2, "0"), x0 + 6, y0 + (m.kind === "alt" ? 12 : 4));
     });
-    $("markCount").textContent = s.moments.length ? "(" + s.moments.length + ")" : "";
-    $("emptyMarks").hidden = s.moments.length > 0;
-    $("undoBtn").disabled = s.moments.length === 0;
+    if (hold && hold.range) {
+      g.fillStyle = hatch; g.fillRect(X(hold.t), marksY, X(t) - X(hold.t), mH);
+      vline(X(hold.t), marksY, mBot, C.live);
+    }
+
+    // energy: continuous line per pass, current pass filled
+    hline(energyY, C.rule);
+    label("Energy", 16, energyY + 8);
+    const eTop = energyY + 28, eBot = H - 8, eY = (e) => eBot - e * (eBot - eTop);
+    s.passes.forEach((p) => {
+      const log = p.energy_log; if (!log.length) return;
+      const own = p.n === current, end = own && s._marker.running ? t : p.ended_s || log[log.length - 1].t_s;
+      const pts = [];
+      log.forEach((pt) => pts.push([X(pt.t_s), eY(pt.energy)]));
+      pts.push([X(end), eY(log[log.length - 1].energy)]);
+      if (own) {
+        g.fillStyle = C.slab; g.beginPath(); g.moveTo(pts[0][0], eBot);
+        pts.forEach(([x, y]) => g.lineTo(x, y)); g.lineTo(pts[pts.length - 1][0], eBot); g.closePath(); g.fill();
+      }
+      g.strokeStyle = own ? C.bright : C.dim; g.lineWidth = 1; g.beginPath();
+      pts.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); g.stroke();
+    });
+    // current energy level: a short white tick at the playhead
+    const tickX = current ? X(t) : 0;
+    g.fillStyle = C.live; g.fillRect(Math.round(tickX) - 8, Math.round(eY(s._marker.energy)), 16, 1);
+
+    // playhead
+    if (current) vline(X(t), 0, H, C.live, 2);
   }
 
-  // --- wiring ---
-  Object.entries(fields).forEach(([id, [group, key]]) => {
-    const el = $(id);
-    el.value = s[group][key] || "";
-    el.addEventListener("input", () => { s[group][key] = el.value; save(); render(); });
-  });
-  $("private").checked = !!s.private;
-  $("private").addEventListener("change", (e) => { s.private = e.target.checked; save(); });
-  if (s.passes.length) $("trackCard").open = false;
+  // ---------- chrome ----------
+  function renderBars() {
+    const running = s._marker.running, p = pass(), locked = !!document.pointerLockElement;
+    document.body.classList.toggle("running", running);
+    document.body.classList.toggle("locked", locked);
+    $("passLabel").textContent = p ? "Pass " + String(p.n).padStart(2, "0") + (running ? " · rec" : "") : "No pass";
+    $("startBtn").textContent = s.passes.length ? "New pass" : "Start";
+    $("startBtn").disabled = running;
+    $("stopBtn").disabled = !running;
+    $("stopBtn").classList.toggle("on", running);
+    $("privateBtn").classList.toggle("on", !!s.private);
+    $("fileBtn").classList.toggle("on", audio.mode === "file");
+    $("inputBtn").classList.toggle("on", audio.mode === "live" && !$("device").hidden);
+    $("systemBtn").classList.toggle("on", audio.mode === "live" && $("device").hidden);
+    $("energyOut").textContent = s._marker.energy.toFixed(2);
+    $("clock").textContent = J.formatTime(now());
+    const hint = $("hint");
+    if (running && lockLost) hint.innerHTML = "Click to hide the cursor again<br>Space still marks · S to stop";
+    else if (!running && !s.passes.length) hint.innerHTML = "Choose a source below<br>Enter start · space mark · hold space range<br>A alt mark · two-finger swipe energy<br>T test input";
+    else hint.innerHTML = "";
+    hint.style.display = hint.innerHTML ? "" : "none";
+  }
 
+  // ---------- input test ----------
+  const test = { open: false, swipes: 0, swipeSum: 0, presses: 0, alts: 0, both1: 0, both2: 0, down: false, downAt: 0, lastWheel: 0, lastHold: 0 };
+  function toggleTest() {
+    test.open = !test.open;
+    if (test.open) stopPass();
+    $("test").classList.toggle("open", test.open);
+    $("testBtn").classList.toggle("on", test.open);
+  }
+  function renderTest() {
+    $("tSwipe").textContent = test.swipes + " events · Δ " + Math.round(test.swipeSum);
+    $("tSwipeBar").style.bottom = (50 + Math.max(-50, Math.min(50, test.swipeSum / 8))) + "%";
+    $("tClickState").textContent = test.down ? "DOWN" : "UP";
+    $("tClickState").classList.toggle("hot", test.down);
+    $("tClick").textContent = test.presses + " presses · last hold " + test.lastHold.toFixed(2) + "s";
+    $("tAlt").textContent = test.alts + " presses";
+    $("tBoth").innerHTML = "swipe while space held: " + test.both1 + "<br>space while swiping: " + test.both2;
+  }
+  function flash(id, text) {
+    const el = $(id); el.textContent = text; el.classList.add("hot");
+    clearTimeout(el._t); el._t = setTimeout(() => { el.classList.remove("hot"); el.textContent = "—"; }, 500);
+  }
+
+  // ---------- wiring ----------
+  const fields = { title: ["track", "title"], artist: ["track", "artist"], moodBefore: ["context", "mood_before"], moodAfter: ["context", "mood_after"] };
+  Object.entries(fields).forEach(([id, [grp, key]]) => {
+    const el = $(id); el.value = s[grp][key] || "";
+    el.addEventListener("input", () => { s[grp][key] = el.value; save(); });
+    el.addEventListener("keydown", (e) => { if (e.key === "Enter") el.blur(); });
+  });
+  $("privateBtn").onclick = () => { s.private = !s.private; save(); renderBars(); };
+  $("fileBtn").onclick = () => $("fileInput").click();
+  $("fileInput").onchange = (e) => { if (e.target.files[0]) loadFile(e.target.files[0]); e.target.value = ""; };
+  $("inputBtn").onclick = () => startInput();
+  $("device").onchange = (e) => startInput(e.target.value);
+  $("systemBtn").onclick = startSystem;
   $("startBtn").onclick = startPass;
   $("stopBtn").onclick = stopPass;
-  $("energyUp").onclick = () => changeEnergy(1);
-  $("energyDown").onclick = () => changeEnergy(-1);
-  $("undoBtn").onclick = () => { s.moments.pop(); save(); render(); };
+  $("testBtn").onclick = toggleTest;
+  $("exportBtn").onclick = () => {
+    const out = JSON.parse(JSON.stringify(s)); delete out._marker; out.id = J.sessionId(out.date, out.track);
+    J.download("session.json", JSON.stringify(out, null, 2));
+    setStatus("Exported · move into " + (s.private ? "private/" : "sessions/") + (out.id || "<date-artist-track>") + "/");
+  };
+  $("resetBtn").onclick = () => {
+    if (s.moments.length && !confirm("Clear this session? Export it first if you want to keep it.")) return;
+    stopPass();
+    const keepFile = audio.mode === "file" ? { w: s.waveform, d: s.track.duration_s } : null;
+    s = blankSession();
+    if (keepFile) { s.waveform = keepFile.w; s.track.duration_s = keepFile.d; s.track.source = "local"; }
+    J.store.remove(KEY);
+    Object.keys(fields).forEach((id) => $(id).value = "");
+    setStatus(""); renderBars(); dirty = true;
+  };
 
-  const mark = $("mark");
-  mark.addEventListener("pointerdown", (e) => { e.preventDefault(); mark.setPointerCapture(e.pointerId); beginHold(); });
-  mark.addEventListener("pointerup", endHold);
-  mark.addEventListener("pointercancel", cancelHold);
-  mark.addEventListener("contextmenu", (e) => e.preventDefault());
+  // Trackpad = energy only. Marks live on the keyboard so a stray click never makes one.
+  const stage = $("stage");
+  window.addEventListener("wheel", (e) => {
+    if (e.target instanceof Element && e.target.closest("select")) return;
+    e.preventDefault();
+    if (e.ctrlKey) return;                       // pinch
+    const d = (e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY) * (s._marker.invert ? -1 : 1);
+    if (test.open) {
+      test.swipes++; test.swipeSum += d; test.lastWheel = performance.now();
+      if (test.down) test.both1++;
+      renderTest(); return;
+    }
+    nudgeEnergy(d / SWIPE_PER_UNIT);
+  }, { passive: false });
+
+  stage.addEventListener("mousedown", () => {
+    if (s._marker.running && lockLost) { lockLost = false; lock(); renderBars(); }   // click after Esc re-captures the cursor
+  });
+  stage.addEventListener("contextmenu", (e) => e.preventDefault());
+  document.addEventListener("pointerlockchange", () => {
+    if (!document.pointerLockElement && s._marker.running) lockLost = true;
+    renderBars();
+  });
 
   const typing = (e) => e.target instanceof Element && e.target.matches("input, select, textarea");
   document.addEventListener("keydown", (e) => {
-    if (typing(e)) return;
-    if (e.code === "Space") { e.preventDefault(); if (!e.repeat) beginHold(); }
-    else if (e.code === "ArrowUp") { e.preventDefault(); changeEnergy(1); }
-    else if (e.code === "ArrowDown") { e.preventDefault(); changeEnergy(-1); }
+    if (typing(e) || e.metaKey || e.ctrlKey) return;
+    if (e.code === "Space") {
+      e.preventDefault();
+      if (e.repeat) return;
+      if (test.open) {
+        test.down = true; test.downAt = performance.now(); test.presses++;
+        if (performance.now() - test.lastWheel < 200) { test.both2++; flash("tBothState", "BOTH"); }
+        renderTest();
+      } else beginHold();
+    }
+    else if (e.code === "KeyA") {
+      if (test.open) { test.alts++; flash("tAltState", "ALT"); renderTest(); }
+      else if (s._marker.running) addMark("alt", now(), null);
+    }
+    else if (e.code === "Enter" && !s._marker.running) { e.preventDefault(); startPass(); }
+    else if (e.code === "KeyS") stopPass();
+    else if (e.code === "KeyT") toggleTest();
+    else if (e.code === "KeyI") { s._marker.invert = !s._marker.invert; save(); setStatus("Swipe direction " + (s._marker.invert ? "inverted" : "normal")); }
+    else if (e.code === "ArrowUp") { e.preventDefault(); nudgeEnergy(0.05); }
+    else if (e.code === "ArrowDown") { e.preventDefault(); nudgeEnergy(-0.05); }
   });
   document.addEventListener("keyup", (e) => {
-    if (e.code === "Space" && !typing(e)) { e.preventDefault(); endHold(); }
+    if (e.code !== "Space" || typing(e)) return;
+    e.preventDefault();
+    if (test.open) { if (test.down) { test.down = false; test.lastHold = (performance.now() - test.downAt) / 1000; renderTest(); } }
+    else endHold();
   });
+  audio.el.addEventListener("ended", stopPass);
 
-  $("downloadBtn").onclick = () => {
-    const json = exportSession();
-    J.download("session.json", json);
-    setStatus("Downloaded. Move it into " + (s.private ? "private/" : "sessions/") + (s.id || "<date-artist-track>") + "/");
-  };
-  $("copyBtn").onclick = async () => {
-    try { await navigator.clipboard.writeText(exportSession()); setStatus("Copied to clipboard."); }
-    catch (e) { setStatus("Couldn't copy here. Use Download instead."); }
-  };
-  $("resetBtn").onclick = () => {
-    if (s.moments.length && !confirm("Clear this session? Download it first if you want to keep it.")) return;
-    if (s._marker.running) stopPass();
-    s = blankSession();
-    J.store.remove(KEY);
-    Object.keys(fields).forEach((id) => { $(id).value = id === "source" ? "spotify" : ""; });
-    $("private").checked = false;
-    $("trackCard").open = true;
-    setStatus("");
-    render();
-  };
+  new ResizeObserver(resize).observe(canvas);
+  resize();
+  renderBars();
+  setStatus(s.waveform.peaks.length ? "Waveform kept from last time · choose a source to continue" : "File for local audio · Input or System for Spotify");
 
-  setInterval(() => { if (s._marker.running) $("clock").textContent = J.formatTime(elapsed()); }, 100);
-  render();
+  let lastSave = 0;
+  (function frame(ts) {
+    if (audio.mode === "live") sampleLive();
+    $("level").firstChild.style.width = Math.min(100, audio.level * 140) + "%";
+    if (s._marker.running) {
+      dirty = true;
+      $("clock").textContent = J.formatTime(now());
+      if (ts - lastSave > 1000) { save(); lastSave = ts; }
+    }
+    if (dirty) { draw(); dirty = false; }
+    requestAnimationFrame(frame);
+  })(0);
 })();
 </script>
 </body>
