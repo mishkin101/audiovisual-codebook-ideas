@@ -34,6 +34,13 @@
     .card .sws i { width: 10px; height: 10px; display: block; border: var(--hair) solid var(--rule); }
     .private { border: var(--hair) solid var(--mid); padding: 2px 4px; }
 
+    .feature { border-bottom: var(--hair) solid var(--rule); padding: var(--u3) var(--u2) var(--u4); }
+    .feature .head { display: flex; justify-content: space-between; gap: var(--u2); align-items: baseline; margin-bottom: var(--u2); flex-wrap: wrap; }
+    .feature .head .label:first-child { color: var(--live); }
+    .feature a { border: none; display: block; }
+    .feature img { width: 100%; height: auto; display: block; border: var(--hair) solid var(--rule); }
+    .feature a:hover img { border-color: var(--mid); }
+    .feature .cap { margin-top: var(--u); display: flex; justify-content: space-between; gap: var(--u2); flex-wrap: wrap; }
     .empty { padding: var(--u6) var(--u2); border-bottom: var(--hair) solid var(--rule); }
     .empty ol { margin: var(--u2) 0 0; padding-left: 20px; color: var(--mid); line-height: 2; }
     footer { padding: var(--u3) var(--u2); }
@@ -59,6 +66,22 @@
       <div class="count" id="count"></div>
     </div>
   </header>
+
+  <!-- Placeholder: a screenshot of the visualizer test, until the page itself is built out -->
+  <section class="feature">
+    <div class="head">
+      <span class="label">Main visualizer · logging format exploration</span>
+      <span class="label dimmed">Placeholder test</span>
+    </div>
+    <a href="visualizer.html" title="Open the visualizer">
+      <img src="docs/images/visualizer-the-situation-test.webp" width="2000" height="1255" loading="lazy"
+           alt="Visualizer test: a full-width waveform above a notebook sketch of a blue folded form and a green coil, with dotted texture and handwritten notes">
+    </a>
+    <div class="cap">
+      <span class="label">The Situation · Coflo · 2026-10-30</span>
+      <a class="label" href="visualizer.html" style="display:inline">Open the visualizer →</a>
+    </div>
+  </section>
 
   <main class="grid" id="grid"></main>
   <div class="empty" id="empty" hidden>

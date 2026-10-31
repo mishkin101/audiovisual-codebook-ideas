@@ -76,6 +76,7 @@
 
   <input type="file" id="audioInput" accept="audio/*" hidden>
   <input type="file" id="sessionInput" accept="application/json,.json" hidden>
+  <input type="file" id="folderInput" webkitdirectory multiple hidden>
   <input type="file" id="imageInput" accept="image/*" multiple hidden>
 
 <script src="assets/journal.js?v=2"></script>
@@ -165,7 +166,9 @@
   }
 
   // ---------- sessions ----------
-  async function loadSession(session, base, remember, keepImages) {
+  // sketchOf(file) returns the image Blob for a sketch, or null. Repo sessions fetch it from the server;
+  // a picked folder reads it from disk.
+  async function loadSession(session, sketchOf, remember, keepImages) {
     if (!session || !session.waveform) return setTitle("That isn't a session file");
     if (!audio.paused) audio.pause();
     player.pause();
@@ -183,10 +186,10 @@
     try { localStorage.setItem("journal.viz.source", JSON.stringify(remember)); } catch (e) {}
     drawWave(); drawClock();
     // A session saved in the repo brings its sketches with it.
-    if (base && !keepImages && session.sketches && session.sketches.length) {
+    if (sketchOf && !keepImages && session.sketches && session.sketches.length) {
       const blobs = [];
       for (const sk of session.sketches) {
-        try { const r = await fetch(base + encodeURIComponent(sk.file)); if (r.ok) blobs.push(await r.blob()); } catch (e) {}
+        try { const b = await sketchOf(sk.file); if (b) blobs.push(b); } catch (e) {}
       }
       if (blobs.length) {
         images.forEach((x) => URL.revokeObjectURL(x.url));
@@ -200,7 +203,8 @@
     try {
       const r = await fetch(path + "/session.json", { cache: "no-cache" });
       if (!r.ok) throw new Error();
-      await loadSession(await r.json(), path + "/", { path }, keepImages);
+      const fromServer = async (file) => { const res = await fetch(path + "/" + encodeURIComponent(file)); return res.ok ? res.blob() : null; };
+      await loadSession(await r.json(), fromServer, { path }, keepImages);
     } catch (e) { setTitle("Couldn't open " + path); }
   }
   function loadFromMarker() {
@@ -221,11 +225,13 @@
       list.map((x) => '<button data-path="' + E(x.path) + '"><span class="label">' + E(x.date || "") + "</span><span>" + E(x.title || "Untitled") +
         (x.artist ? ' <span class="label">' + E(x.artist) + "</span>" : "") + '</span><span class="label">' + (x.path.startsWith("private") ? "private" : "") + "</span></button>").join("") +
       (list.length ? "" : '<span class="label dimmed note">No saved sessions yet</span>') +
-      '<button data-act="file"><span class="label">File</span><span>Open a session.json…</span><span></span></button>';
+      '<button data-act="folder"><span class="label">Folder</span><span>Open a session folder… <span class="label">with its sketches</span></span><span></span></button>' +
+      '<button data-act="file"><span class="label">File</span><span>Open a session.json… <span class="label">waveform only</span></span><span></span></button>';
     menu.querySelectorAll("button").forEach((b) => b.onclick = () => {
       menu.classList.remove("open");
       if (b.dataset.path) loadSavedSession(b.dataset.path);
       else if (b.dataset.act === "marker") loadFromMarker();
+      else if (b.dataset.act === "folder") $("folderInput").click();
       else $("sessionInput").click();
     });
     menu.classList.add("open");
@@ -290,6 +296,30 @@
   $("imageBtn").onclick = () => $("imageInput").click();
   $("audioBtn").onclick = () => $("audioInput").click();
   $("sessionBtn").onclick = openMenu;
+  // A picked folder can be one session folder, or a folder holding several (e.g. a whole sessions/ folder).
+  $("folderInput").onchange = async (e) => {
+    const files = [...e.target.files]; e.target.value = "";
+    const dirOf = (f) => (f.webkitRelativePath || f.name).split("/").slice(0, -1).join("/");
+    const found = [];
+    for (const f of files.filter((x) => x.name === "session.json")) {
+      try { found.push({ dir: dirOf(f), session: JSON.parse(await f.text()) }); } catch (err) {}
+    }
+    if (!found.length) return setTitle("No session.json in that folder");
+    const openOne = (item) => {
+      const byName = new Map(files.filter((f) => dirOf(f) === item.dir).map((f) => [f.name, f]));
+      loadSession(item.session, async (file) => byName.get(file) || null, { session: item.session });
+    };
+    if (found.length === 1) return openOne(found[0]);
+    // several sessions: let me pick one from the same menu
+    found.sort((a, b) => (b.session.date || "").localeCompare(a.session.date || ""));
+    const menu = $("menu"), E = J.escape;
+    menu.innerHTML = '<span class="label note">' + found.length + " sessions in that folder</span>" + found.map((x, i) =>
+      '<button data-i="' + i + '"><span class="label">' + E(x.session.date || "") + "</span><span>" + E((x.session.track || {}).title || x.dir) +
+      ' <span class="label">' + E((x.session.track || {}).artist || "") + '</span></span><span class="label">' + ((x.session.sketches || []).length ? (x.session.sketches.length + " img") : "") + "</span></button>").join("");
+    menu.querySelectorAll("button").forEach((b) => b.onclick = () => { menu.classList.remove("open"); openOne(found[+b.dataset.i]); });
+    menu.classList.add("open");
+  };
+
   $("sessionInput").onchange = async (e) => {
     const f = e.target.files[0]; e.target.value = "";
     if (!f) return;

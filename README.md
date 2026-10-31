@@ -1,5 +1,11 @@
 # audiovisual-codebook-ideas
 
+### Main visualizer · logging format exploration
+
+![Visualizer test: a full-width waveform above a notebook sketch of a blue folded form and a green coil](docs/images/visualizer-the-situation-test.webp)
+
+*Placeholder test: "The Situation" by Coflo, 2026-10-30. The visualizer page (`visualizer.html`) shows a session's waveform across the top and its sketch filling the screen.*
+
 A public journal of what I see when I hear music: color, motion, texture and energy, and how they change over the length of a track.
 
 Paper sketches come first. This repo adds **time**. While a song plays, I mark *when* something shifts and how much energy I feel. Later I fill in what I saw and attach photos of my sketches, so each listen can be replayed as a timeline.
