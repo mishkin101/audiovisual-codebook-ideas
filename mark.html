@@ -32,7 +32,7 @@
 
     #test {
       position: absolute; inset: 0; background: var(--void); display: none;
-      grid-template-columns: repeat(4, 1fr); grid-template-rows: auto 1fr;
+      grid-template-columns: repeat(3, 1fr); grid-template-rows: auto 1fr;
     }
     #test.open { display: grid; }
     #test .intro { grid-column: 1 / -1; padding: var(--u3) var(--u2); border-bottom: var(--hair) solid var(--rule); display: flex; gap: var(--u3); align-items: baseline; }
@@ -78,11 +78,6 @@
         <span class="data" id="tClick">0 presses · last hold 0.00s</span>
       </div>
       <div class="cell">
-        <span class="label">A · alt mark</span>
-        <span class="big" id="tAltState">—</span>
-        <span class="data" id="tAlt">0 presses</span>
-      </div>
-      <div class="cell">
         <span class="label">Together</span>
         <span class="big" id="tBothState">—</span>
         <span class="data" id="tBoth">swipe while space held: 0<br>space while swiping: 0</span>
@@ -108,18 +103,15 @@
   </footer>
 
 <script src="assets/journal.js"></script>
+<script src="assets/score.js"></script>
 <script>
 (function () {
   const J = window.Journal;
   const KEY = "journal.marker.current";
   const HOLD_MS = 300;
-  const RATE = 20;              // waveform samples per second
+  const RATE = 50;              // waveform samples per second
   const SWIPE_PER_UNIT = 800;   // pixels of scroll for the full 0-1 energy range
   const $ = (id) => document.getElementById(id);
-  const css = getComputedStyle(document.documentElement);
-  const C = {};
-  ["void", "slab", "rule", "dim", "mid", "bright", "live"].forEach((k) => C[k] = css.getPropertyValue("--" + k).trim());
-  const FONT = css.getPropertyValue("--mono");
 
   // ---------- session state ----------
   function blankSession() {
@@ -164,13 +156,6 @@
     if (!s._marker.running) return pass() ? pass().ended_s || 0 : 0;
     if (audio.mode === "file") return audio.el.currentTime;
     return (Date.now() - s._marker.startMs) / 1000;
-  }
-
-  function viewDur() {
-    let maxT = now();
-    s.passes.forEach((p) => { if (p.ended_s) maxT = Math.max(maxT, p.ended_s); });
-    if (s.track.duration_s) return Math.max(s.track.duration_s, maxT);
-    return Math.max(240, maxT * 1.05);
   }
 
   function setStatus(text) { $("status").textContent = text; }
@@ -270,7 +255,8 @@
     for (let i = 0; i < audio.buf.length; i++) { const v = Math.abs(audio.buf[i]); if (v > m) m = v; }
     audio.level = m;
     if (!s._marker.running) return;
-    const idx = Math.floor(now() * RATE), peaks = s.waveform.peaks;
+    if (!s.waveform.peaks.length) s.waveform.rate_hz = RATE;
+    const idx = Math.floor(now() * s.waveform.rate_hz), peaks = s.waveform.peaks;
     if (idx < recordFrom) return;
     while (peaks.length < idx) peaks.push(0);
     peaks[idx] = round(Math.max(peaks[idx] || 0, m), 3);
@@ -352,113 +338,15 @@
   }
 
   // ---------- drawing ----------
-  const canvas = $("score"), g = canvas.getContext("2d");
-  let W = 0, H = 0, hatch = null;
-
-  function resize() {
-    const dpr = window.devicePixelRatio || 1;
-    W = canvas.clientWidth; H = canvas.clientHeight;
-    canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
-    g.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const p = document.createElement("canvas"); p.width = p.height = 6;
-    const pg = p.getContext("2d"); pg.strokeStyle = C.mid; pg.lineWidth = 1;
-    pg.beginPath(); pg.moveTo(0, 6); pg.lineTo(6, 0); pg.stroke();
-    hatch = g.createPattern(p, "repeat");
-    dirty = true;
-  }
-
-  const px = (x) => Math.round(x) + 0.5;
-  function vline(x, y0, y1, color, w = 1) {
-    const xx = w === 1 ? px(x) : Math.round(x);
-    g.strokeStyle = color; g.lineWidth = w;
-    g.beginPath(); g.moveTo(xx, y0); g.lineTo(xx, y1); g.stroke();
-  }
-  function hline(y, color) { g.strokeStyle = color; g.lineWidth = 1; g.beginPath(); g.moveTo(0, px(y)); g.lineTo(W, px(y)); g.stroke(); }
-  function label(text, x, y, color = C.mid) {
-    g.fillStyle = color; g.textAlign = "left"; g.textBaseline = "top";
-    g.font = "500 10px " + FONT;
-    if ("letterSpacing" in g) g.letterSpacing = "1.6px";
-    g.fillText(text.toUpperCase(), x, y);
-  }
-
+  const score = Score.create($("score"));
+  function resize() { score.resize(); dirty = true; }
   function draw() {
-    const dur = viewDur(), t = now(), X = (sec) => (sec / dur) * W;
-    const waveH = Math.round(H * 0.42), rulerY = waveH, marksY = waveH + 24, mH = 80, energyY = marksY + mH;
     const current = pass() ? pass().n : 0;
-    g.fillStyle = C.void; g.fillRect(0, 0, W, H);
-
-    // waveform
-    g.fillStyle = C.slab; g.fillRect(0, 0, W, waveH);
-    const peaks = s.waveform.peaks, mid = waveH / 2;
-    if (peaks.length) {
-      let max = 0; for (const p of peaks) if (p > max) max = p;
-      const norm = max > 0 ? 1 / max : 0, amp = mid - 16;
-      for (let x = 0; x < W; x++) {
-        const a = Math.floor((x / W) * dur * RATE), b = Math.max(a + 1, Math.floor(((x + 1) / W) * dur * RATE));
-        let m = 0; for (let i = a; i < b && i < peaks.length; i++) if (peaks[i] > m) m = peaks[i];
-        if (!m) continue;
-        const h = Math.max(0.5, m * norm * amp);
-        vline(x, mid - h, mid + h, current && x < X(t) ? C.bright : C.mid);
-      }
-    } else {
-      hline(mid, C.rule);
-    }
-    label("Waveform" + (s.waveform.source ? " · " + s.waveform.source : ""), 16, 12);
-
-    // ruler
-    hline(rulerY, C.rule);
-    const step = dur > 900 ? 60 : dur > 360 ? 30 : 10, major = step * 3;
-    for (let sec = 0; sec <= dur; sec += step) {
-      const isMajor = sec % major === 0;
-      vline(X(sec), rulerY, rulerY + (isMajor ? 10 : 5), C.dim);
-      if (isMajor && X(sec) < W - 40) label(J.formatTime(sec).slice(0, 5), X(sec) + 4, rulerY + 12, C.dim);
-    }
-
-    // marks: current pass full height in white, earlier passes half height in dim
-    hline(marksY, C.rule);
-    label("Marks", 16, marksY + 8);
-    const mBot = marksY + mH;
-    s.moments.forEach((m) => {
-      const own = m.pass === current, y0 = own ? marksY : marksY + mH / 2, col = own ? C.live : C.dim;
-      const x0 = X(m.t_s);
-      if (m.kind === "range") {
-        const x1 = X(m.t_end_s);
-        if (own) { g.fillStyle = hatch; g.fillRect(x0, y0, Math.max(1, x1 - x0), mBot - y0); }
-        vline(x0, y0, mBot, col); vline(x1, y0, mBot, own ? C.bright : C.dim);
-      } else {
-        vline(x0, y0, mBot, col);
-        if (m.kind === "alt") { g.fillStyle = col; g.fillRect(Math.round(x0) - 3, y0, 8, 8); }
-      }
-      if (own) label(String(m.n).padStart(2, "0"), x0 + 6, y0 + (m.kind === "alt" ? 12 : 4));
+    score.draw({
+      session: s, t: now(), current, running: s._marker.running,
+      hold: hold && hold.range ? { t: hold.t } : null,
+      energyNow: s._marker.energy, playhead: !!current, follow: s._marker.running
     });
-    if (hold && hold.range) {
-      g.fillStyle = hatch; g.fillRect(X(hold.t), marksY, X(t) - X(hold.t), mH);
-      vline(X(hold.t), marksY, mBot, C.live);
-    }
-
-    // energy: continuous line per pass, current pass filled
-    hline(energyY, C.rule);
-    label("Energy", 16, energyY + 8);
-    const eTop = energyY + 28, eBot = H - 8, eY = (e) => eBot - e * (eBot - eTop);
-    s.passes.forEach((p) => {
-      const log = p.energy_log; if (!log.length) return;
-      const own = p.n === current, end = own && s._marker.running ? t : p.ended_s || log[log.length - 1].t_s;
-      const pts = [];
-      log.forEach((pt) => pts.push([X(pt.t_s), eY(pt.energy)]));
-      pts.push([X(end), eY(log[log.length - 1].energy)]);
-      if (own) {
-        g.fillStyle = C.slab; g.beginPath(); g.moveTo(pts[0][0], eBot);
-        pts.forEach(([x, y]) => g.lineTo(x, y)); g.lineTo(pts[pts.length - 1][0], eBot); g.closePath(); g.fill();
-      }
-      g.strokeStyle = own ? C.bright : C.dim; g.lineWidth = 1; g.beginPath();
-      pts.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); g.stroke();
-    });
-    // current energy level: a short white tick at the playhead
-    const tickX = current ? X(t) : 0;
-    g.fillStyle = C.live; g.fillRect(Math.round(tickX) - 8, Math.round(eY(s._marker.energy)), 16, 1);
-
-    // playhead
-    if (current) vline(X(t), 0, H, C.live, 2);
   }
 
   // ---------- chrome ----------
@@ -479,13 +367,13 @@
     $("clock").textContent = J.formatTime(now());
     const hint = $("hint");
     if (running && lockLost) hint.innerHTML = "Click to hide the cursor again<br>Space still marks · S to stop";
-    else if (!running && !s.passes.length) hint.innerHTML = "Choose a source below<br>Enter start · space mark · hold space range<br>A alt mark · two-finger swipe energy<br>T test input";
+    else if (!running && !s.passes.length) hint.innerHTML = "Choose a source below<br>Enter start · space mark · hold space range<br>two-finger swipe energy<br>T test input";
     else hint.innerHTML = "";
     hint.style.display = hint.innerHTML ? "" : "none";
   }
 
   // ---------- input test ----------
-  const test = { open: false, swipes: 0, swipeSum: 0, presses: 0, alts: 0, both1: 0, both2: 0, down: false, downAt: 0, lastWheel: 0, lastHold: 0 };
+  const test = { open: false, swipes: 0, swipeSum: 0, presses: 0, both1: 0, both2: 0, down: false, downAt: 0, lastWheel: 0, lastHold: 0 };
   function toggleTest() {
     test.open = !test.open;
     if (test.open) stopPass();
@@ -498,7 +386,6 @@
     $("tClickState").textContent = test.down ? "DOWN" : "UP";
     $("tClickState").classList.toggle("hot", test.down);
     $("tClick").textContent = test.presses + " presses · last hold " + test.lastHold.toFixed(2) + "s";
-    $("tAlt").textContent = test.alts + " presses";
     $("tBoth").innerHTML = "swipe while space held: " + test.both1 + "<br>space while swiping: " + test.both2;
   }
   function flash(id, text) {
@@ -543,7 +430,10 @@
   window.addEventListener("wheel", (e) => {
     if (e.target instanceof Element && e.target.closest("select")) return;
     e.preventDefault();
-    if (e.ctrlKey) return;                       // pinch
+    if (e.ctrlKey) {                             // pinch zooms the score around the playhead
+      if (!test.open) { score.zoom(Math.exp(-e.deltaY * 0.01), pass() ? score.toX(now()) : undefined); dirty = true; }
+      return;
+    }
     const d = (e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY) * (s._marker.invert ? -1 : 1);
     if (test.open) {
       test.swipes++; test.swipeSum += d; test.lastWheel = performance.now();
@@ -557,6 +447,7 @@
     if (s._marker.running && lockLost) { lockLost = false; lock(); renderBars(); }   // click after Esc re-captures the cursor
   });
   stage.addEventListener("contextmenu", (e) => e.preventDefault());
+  document.addEventListener("gesturestart", (e) => e.preventDefault());   // Safari: no page zoom
   document.addEventListener("pointerlockchange", () => {
     if (!document.pointerLockElement && s._marker.running) lockLost = true;
     renderBars();
@@ -574,14 +465,13 @@
         renderTest();
       } else beginHold();
     }
-    else if (e.code === "KeyA") {
-      if (test.open) { test.alts++; flash("tAltState", "ALT"); renderTest(); }
-      else if (s._marker.running) addMark("alt", now(), null);
-    }
     else if (e.code === "Enter" && !s._marker.running) { e.preventDefault(); startPass(); }
     else if (e.code === "KeyS") stopPass();
     else if (e.code === "KeyT") toggleTest();
     else if (e.code === "KeyI") { s._marker.invert = !s._marker.invert; save(); setStatus("Swipe direction " + (s._marker.invert ? "inverted" : "normal")); }
+    else if (e.key === "=" || e.key === "+") { score.zoom(2, pass() ? score.toX(now()) : undefined); dirty = true; }
+    else if (e.key === "-") { score.zoom(0.5, pass() ? score.toX(now()) : undefined); dirty = true; }
+    else if (e.key === "0") { score.fit(); dirty = true; }
     else if (e.code === "ArrowUp") { e.preventDefault(); nudgeEnergy(0.05); }
     else if (e.code === "ArrowDown") { e.preventDefault(); nudgeEnergy(-0.05); }
   });
@@ -593,8 +483,7 @@
   });
   audio.el.addEventListener("ended", stopPass);
 
-  new ResizeObserver(resize).observe(canvas);
-  resize();
+  new ResizeObserver(resize).observe($("score"));
   renderBars();
   setStatus(s.waveform.peaks.length ? "Waveform kept from last time · choose a source to continue" : "File for local audio · Input or System for Spotify");
 

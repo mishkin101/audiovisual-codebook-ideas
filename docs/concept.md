@@ -24,18 +24,20 @@ I see music: color, motion, texture, shifts in energy. I sketch these on paper w
 ## Daily flow
 1. **Listen + mark.** Open the Marker (`mark.html`, full screen, black). Pick a source: **File** for a local track (the whole waveform appears up front), or **Input / System** for Spotify (the waveform draws live as it plays). Press **Enter** to start a pass.
 2. **One hand marks, the other sets energy:**
-   - **Space** tap = instant mark · **hold space** = range · **A** = alt mark
+   - **Space** tap = instant mark · **hold space** = range
    - **Two-finger swipe** on the trackpad = energy, a continuous 0.00 to 1.00 scale (clicks never make marks)
+   - **Pinch** zooms the score (it follows the playhead); **+ / − / 0** zoom in, out, fit
    - Other keys: arrow keys nudge energy, **S** stop, **T** input test, **I** invert swipe direction
 3. **Sketch on paper** as usual, writing mark numbers (01, 02…) next to the drawings.
-4. **Digitize later.** The Session editor loads the marks. Fill in each moment (quick chips appear for tags I've used before; anything unusual goes in *other*), attach sketch photos, add reflection. Export a session folder.
-5. **Commit.** The folder goes into `sessions/` (or `private/`) and GitHub Pages updates the public gallery.
+4. **Digitize later** in the editor (`edit.html`). **From marker** loads the latest listen onto the same black score. Click a mark to fill in tags, colors, motion, texture, *other* and a note (chips suggest what I've used before). Add sketch photos and pin each to a mark. Pinch to zoom into the timeline and swipe to move along it (+ / − / 0 also work). Fix timing by dragging edges or typing times; double-click to add a mark; ⌫ deletes; Z undoes. Optionally load the audio to listen while editing.
+5. **Save.** In Chrome, choose the repo folder once; **Save** (⌘S) writes `sessions/<date-artist-track>/` with `session.json` and the sketch photos (shrunk to 1600px JPEGs), or `private/…` for private sessions. Other browsers download the files instead.
+6. **Commit and push.** GitHub Pages will update the public gallery (coming).
 
 > Spotify's desktop app doesn't share its audio with webpages. The Marker listens instead: **System** captures computer audio where the browser allows it, and **Input** listens to an audio input. A free loopback driver (e.g. BlackHole) can route Spotify into **Input** without a microphone.
 > **T** opens an input test that shows what the browser receives, including swiping while space is held.
 
 ## Design system
-Architectural, brutalist, minimal: pure monochrome on black, hairline rules, square corners, one monospace typeface, full-bleed layouts. Spec: [`docs/design-system.html`](design-system.html). Tokens: `assets/style.css`.
+Architectural, brutalist, minimal: pure monochrome on black, hairline rules, square corners, one monospace typeface, full-bleed layouts. Spec: [`docs/design-system.html`](design-system.html). Tokens: `assets/style.css`. The score is drawn by `assets/score.js`, shared by every page.
 
 ## Review: what I want to discover
 1. **How a track's visuals evolve.** A *track strip*: a horizontal timeline with color bands between moments, an energy curve, tags, and sketch thumbnails at their timestamps. The static picture turned back into motion.
@@ -59,7 +61,7 @@ docs/concept.md       this file
 ```
 
 ## Draft `session.json`
-`n` is the mark number written on paper. It never changes, even if other marks are deleted. `kind` is `tap`, `range` or `alt`. Energy is continuous from 0 to 1; `energy_log` samples it (up to 10 per second) during each pass. `waveform.peaks` holds the loudest level 20 times per second, from the file or from live capture.
+`n` is the mark number written on paper. It never changes, even if other marks are deleted. `kind` is `tap` or `range`. Energy is continuous from 0 to 1; `energy_log` samples it (up to 10 per second) during each pass. `waveform.peaks` holds the loudest level 50 times per second, from the file or from live capture.
 
 ```json
 {
@@ -78,7 +80,7 @@ docs/concept.md       this file
   ],
   "sketches": [ { "file": "sketch-1.jpg", "t_start_s": 30, "t_end_s": 60, "caption": "" } ],
   "reflection": "",
-  "waveform": { "source": "file", "rate_hz": 20, "peaks": [0.02, 0.11, 0.34] },
+  "waveform": { "source": "file", "rate_hz": 50, "peaks": [0.02, 0.11, 0.34] },
   "audio_features": null
 }
 ```
@@ -86,7 +88,7 @@ docs/concept.md       this file
 ## Build order
 1. ✅ This concept doc
 2. ✅ Design system (`docs/design-system.html`) and Marker (`mark.html`): full-screen score with waveform, marks lane and continuous energy; space marks, trackpad swipe sets energy
-3. Session editor: fill in moments, codebook chips, attach photos, export folder
+3. ✅ Session editor (`edit.html`): fill in moments, suggestion chips, sketch photos, retiming, undo, save into the repo folder
 4. Track strip + gallery + index script + GitHub Pages
 5. First real session from a recent sketch
 6. Later: codebook view, same-song comparison, audio features

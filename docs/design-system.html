@@ -78,7 +78,7 @@
         <p class="lede">The interface is a quiet drawing board for what you see. Your visuals bring the color. The interface never does.</p></header>
       <ol class="rules">
         <li><span><strong>Black ground.</strong> Every surface starts as void. Nothing glows that doesn't need to.</span></li>
-        <li><span><strong>Monochrome only.</strong> Seven steps from black to white. White is reserved for the live moment.</span></li>
+        <li><span><strong>Monochrome only.</strong> Seven steps from black to white. White is reserved for the live moment. The only color ever shown is yours: the colors you assign to moments, drawn as small swatches on the score.</span></li>
         <li><span><strong>Structure is visible.</strong> Hairline rules show the grid, like an architectural drawing. No decoration hides it.</span></li>
         <li><span><strong>Sharp.</strong> Square corners, hard edges. <span class="never">Radius, shadow, blur, gradient, transition</span>.</span></li>
         <li><span><strong>One typeface.</strong> System monospace in a few fixed sizes. Labels are small capitals, data is tabular.</span></li>
@@ -135,7 +135,7 @@
     <section id="glyphs">
       <header><span class="num">04</span><h2>Glyphs</h2>
         <p class="lede">The vocabulary of the marks lane. Each one is readable at a glance without color.</p></header>
-      <div class="grid cols-4">
+      <div class="grid cols-3">
         <div>
           <svg viewBox="0 0 120 80" aria-hidden="true"><line x1="60" y1="8" x2="60" y2="72" stroke="var(--live)" stroke-width="1"/><text x="64" y="16" fill="var(--mid)" font-family="ui-monospace,Menlo,monospace" font-size="9">03</text></svg>
           <p class="label cap">Tap · instant</p><p class="spec">tap space · 1px full-height line</p>
@@ -147,10 +147,6 @@
             <line x1="24" y1="8" x2="24" y2="72" stroke="var(--live)"/><line x1="96" y1="8" x2="96" y2="72" stroke="var(--bright)"/>
           </svg>
           <p class="label cap">Range · held</p><p class="spec">hold space · section hatch</p>
-        </div>
-        <div>
-          <svg viewBox="0 0 120 80" aria-hidden="true"><line x1="60" y1="8" x2="60" y2="72" stroke="var(--live)"/><rect x="56" y="8" width="8" height="8" fill="var(--live)"/></svg>
-          <p class="label cap">Alt · accent</p><p class="spec">A key · line + square head</p>
         </div>
         <div>
           <svg viewBox="0 0 120 80" aria-hidden="true">
@@ -244,7 +240,6 @@
   el("line", { x1: x(44) + 0.5, y1: my0, x2: x(44) + 0.5, y2: my1, stroke: "var(--live)" });
   el("line", { x1: x(66) + 0.5, y1: my0, x2: x(66) + 0.5, y2: my1, stroke: "var(--bright)" });
   tap(79, 4);
-  el("rect", { x: x(79) - 4, y: my0, width: 8, height: 8, fill: "var(--live)" });
   tap(92, 5);
   // energy
   const [ey0, ey1] = L.energy, eh = ey1 - ey0 - 12;

@@ -1,0 +1,626 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Session Editor</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <style>
+    body { display: grid; grid-template-rows: var(--bar) 44vh var(--bar) 1fr; overflow: hidden; }
+    .bar { display: flex; align-items: center; gap: var(--u2); padding: 0 var(--u2); min-width: 0; overflow: hidden; border-bottom: var(--hair) solid var(--rule); }
+    .bar .push { margin-left: auto; display: flex; gap: var(--u); align-items: center; }
+    .tools { border-top: var(--hair) solid var(--rule); }
+    #status { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+    #stage { position: relative; min-height: 0; }
+    #score { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+    #passes { display: flex; gap: 0; }
+    #passes .btn + .btn { border-left: none; }
+    #sessionList { width: 200px; }
+
+    .panels { display: grid; grid-template-columns: 3fr 2fr; min-height: 0; }
+    .panel { overflow: auto; padding: var(--u3) var(--u3) var(--u6); min-width: 0; }
+    .panel + .panel { border-left: var(--hair) solid var(--rule); }
+    .panel h3 { font: var(--t-title); color: var(--live); text-transform: uppercase; letter-spacing: 0.08em; margin: 0 0 var(--u2); display: flex; align-items: baseline; gap: var(--u2); flex-wrap: wrap; }
+    .empty { padding-top: var(--u4); }
+    .row { display: grid; grid-template-columns: 112px 1fr; gap: var(--u2); padding: var(--u2) 0; border-top: var(--hair) solid var(--rule); align-items: start; }
+    .row > .label { padding-top: 9px; }
+    .inline { display: flex; flex-wrap: wrap; gap: var(--u); align-items: center; }
+    .seg { display: flex; }
+    .seg .btn + .btn { border-left: none; }
+    .field.full { width: 100%; }
+    .field.time { width: 88px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .chip {
+      font: var(--t-label); letter-spacing: var(--track-label); text-transform: uppercase;
+      height: 24px; padding: 0 8px; display: inline-flex; align-items: center; gap: 8px;
+      border: var(--hair) solid var(--mid); color: var(--bright); background: none; cursor: pointer;
+    }
+    .chip .x { color: var(--dim); }
+    .chip:hover .x { color: var(--live); }
+    .chip.sugg { border-style: dashed; border-color: var(--dim); color: var(--mid); }
+    .chip.sugg:hover { border-color: var(--mid); color: var(--live); }
+    .sugg-row { margin-top: var(--u); }
+    .area {
+      width: 100%; min-height: 64px; resize: vertical; display: block;
+      font: var(--t-body); color: var(--bright); background: transparent;
+      border: var(--hair) solid var(--rule); padding: var(--u);
+    }
+    .area:hover { border-color: var(--dim); }
+    .area:focus { outline: none; border-color: var(--live); }
+    .sw { width: 24px; height: 24px; border: var(--hair) solid var(--rule); padding: 0; cursor: pointer; }
+    .sw.big { width: 28px; height: 28px; }
+    .sw.add { background: var(--void); color: var(--mid); font: var(--t-data); }
+    .sw.add:hover { color: var(--live); border-color: var(--mid); }
+    input[type="color"].hidden { position: absolute; width: 0; height: 0; opacity: 0; pointer-events: none; }
+    .thumbs { display: flex; flex-wrap: wrap; gap: var(--u); }
+    .thumb { width: 80px; height: 80px; object-fit: cover; border: var(--hair) solid var(--rule); display: block; cursor: pointer; background: var(--slab); }
+    .thumb.on { outline: var(--hair) solid var(--live); outline-offset: 2px; }
+    .sketch { display: grid; grid-template-columns: 96px 1fr auto; gap: var(--u2); padding: var(--u2) 0; border-top: var(--hair) solid var(--rule); align-items: start; }
+    .sketch img { width: 96px; height: 96px; object-fit: cover; border: var(--hair) solid var(--rule); background: var(--slab); }
+    .sketch .meta { display: flex; flex-direction: column; gap: var(--u); min-width: 0; }
+  </style>
+</head>
+<body>
+  <header class="bar">
+    <span class="label" style="color: var(--live)">Editor</span>
+    <input class="field" id="title" placeholder="Title" autocomplete="off" style="width: 20%">
+    <input class="field" id="artist" placeholder="Artist" autocomplete="off" style="width: 14%">
+    <input class="field" id="date" placeholder="YYYY-MM-DD" autocomplete="off" style="width: 11ch">
+    <button class="btn" id="privateBtn" title="Private sessions are saved to private/, which git ignores">Private</button>
+    <div class="push">
+      <button class="btn" id="fromMarkerBtn" title="Load the session currently in the Marker">From marker</button>
+      <select class="field" id="sessionList" hidden><option value="">Open saved…</option></select>
+      <button class="btn" id="openFileBtn">Open file</button>
+      <button class="btn" id="folderBtn" title="Choose this repo's folder once so the editor can save straight into it">Folder</button>
+      <button class="btn" id="saveBtn">Save</button>
+    </div>
+  </header>
+
+  <div id="stage"><canvas id="score"></canvas></div>
+
+  <div class="bar tools">
+    <span class="label">Pass</span>
+    <div id="passes"></div>
+    <button class="btn" id="audioBtn" title="Optional: load the track to listen while editing">Audio</button>
+    <span class="label" id="status"></span>
+    <span class="label dimmed">pinch zoom · + − 0 · click select · double-click add · drag edges · ← → step · ⌫ delete · Z undo</span>
+  </div>
+
+  <div class="panels">
+    <section class="panel" id="momentPanel"></section>
+    <section class="panel" id="sessionPanel"></section>
+  </div>
+
+  <input type="file" id="jsonInput" accept="application/json,.json" hidden>
+  <input type="file" id="audioInput" accept="audio/*" hidden>
+  <input type="file" id="photoInput" accept="image/*" multiple hidden>
+  <input type="color" id="colorInput" class="hidden">
+
+<script src="assets/journal.js"></script>
+<script src="assets/score.js"></script>
+<script>
+(function () {
+  const J = window.Journal, E = J.escape;
+  const DRAFT = "journal.editor.draft", MARKER = "journal.marker.current";
+  const $ = (id) => document.getElementById(id);
+  const round = (x, d = 1) => Math.round(x * 10 ** d) / 10 ** d;
+  const fsAccess = "showDirectoryPicker" in window;
+
+  let s = normalize(J.store.get(DRAFT));
+  let selected = s.moments.length ? s.moments[0].n : null;
+  let viewPass = s.passes.length ? s.passes[s.passes.length - 1].n : 1;
+  let history = [];
+  let images = new Map();         // sketch file -> { blob, url }
+  let dir = null, dirPending = null;
+  let library = [];               // sessions found in the repo folder: { path, session }
+  let audio = null;               // HTMLAudioElement when a track is loaded for listening
+  let drag = null;
+
+  // ---------- model ----------
+  function normalize(x) {
+    const blank = {
+      id: "", date: J.today(), private: false,
+      track: { title: "", artist: "", source: "spotify", url: "", duration_s: null },
+      context: { time_of_day: "", place: "", mood_before: "", mood_after: "" },
+      passes: [], moments: [], sketches: [], reflection: "",
+      waveform: { source: null, rate_hz: 20, peaks: [] }, audio_features: null
+    };
+    if (!x) return blank;
+    const out = Object.assign(blank, x);
+    out.track = Object.assign(blank.track, x.track);
+    out.context = Object.assign({ time_of_day: "", place: "", mood_before: "", mood_after: "" }, x.context);
+    out.waveform = x.waveform || { source: null, rate_hz: 20, peaks: [] };
+    out.moments = (x.moments || []).map((m) => J.newMoment(Object.assign({}, m, m.kind === "range" ? {} : { kind: "tap", t_end_s: null })));
+    out.sketches = x.sketches || [];
+    delete out._marker;
+    return out;
+  }
+
+  function moment(n) { return s.moments.find((m) => m.n === n); }
+  function persist() { J.store.set(DRAFT, s); }
+
+  // Every change goes through here so Z can undo it.
+  function snapshot() { history.push(JSON.stringify(s)); if (history.length > 200) history.shift(); }
+  function change(fn, opts = {}) {
+    if (!opts.noSnapshot) snapshot();
+    fn();
+    persist(); draw();
+    if (opts.panels !== false) renderPanels();
+  }
+  function undo() {
+    if (!history.length) return setStatus("Nothing to undo");
+    s = JSON.parse(history.pop());
+    if (selected != null && !moment(selected)) selected = null;
+    persist(); draw(); renderAll();
+    setStatus("Undone");
+  }
+
+  function setStatus(text) { $("status").textContent = text; }
+
+  function energyAt(passN, t) {
+    const p = s.passes.find((x) => x.n === passN);
+    if (!p || !p.energy_log || !p.energy_log.length) return null;
+    let e = p.energy_log[0].energy;
+    for (const pt of p.energy_log) { if (pt.t_s <= t) e = pt.energy; else break; }
+    return round(e, 2);
+  }
+
+  function addMarkAt(t) {
+    const n = s.moments.reduce((a, m) => Math.max(a, m.n), 0) + 1;
+    change(() => {
+      s.moments.push(J.newMoment({ n, pass: viewPass, kind: "tap", t_s: round(t), energy: energyAt(viewPass, t) }));
+      s.moments.sort((a, b) => a.pass - b.pass || a.t_s - b.t_s);
+      selected = n;
+    });
+  }
+
+  function deleteSelected() {
+    if (selected == null) return;
+    const n = selected, list = passMoments(), i = list.findIndex((m) => m.n === n);
+    change(() => {
+      s.moments = s.moments.filter((m) => m.n !== n);
+      const next = list[i + 1] || list[i - 1];
+      selected = next ? next.n : null;
+    });
+    setStatus("Deleted mark " + String(n).padStart(2, "0") + " · Z to undo");
+  }
+
+  const passMoments = () => s.moments.filter((m) => m.pass === viewPass).sort((a, b) => a.t_s - b.t_s);
+
+  function step(dir) {
+    const list = passMoments(); if (!list.length) return;
+    const i = list.findIndex((m) => m.n === selected);
+    const next = list[i < 0 ? 0 : Math.min(list.length - 1, Math.max(0, i + dir))];
+    selected = next.n; score.reveal(next.t_s); draw(); renderMoment();
+  }
+
+  // Values used before, most frequent first: from every saved session plus this one.
+  function suggestions(key, exclude = []) {
+    const counts = new Map();
+    const add = (v) => { if (!v) return; const k = String(v).trim(); if (k && !exclude.includes(k)) counts.set(k, (counts.get(k) || 0) + 1); };
+    const sources = library.map((x) => x.session).filter((x) => x.id !== s.id).concat([s]);
+    sources.forEach((sess) => (sess.moments || []).forEach((m) => {
+      const v = m[key]; Array.isArray(v) ? v.forEach(add) : add(v);
+    }));
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 16).map(([k]) => k);
+  }
+
+  // ---------- score ----------
+  const score = Score.create($("score"));
+  function draw() {
+    score.draw({
+      session: s, current: viewPass, selected, colors: true,
+      t: audio ? audio.currentTime : 0, playhead: !!audio
+    });
+  }
+  new ResizeObserver(() => { score.resize(); draw(); }).observe($("score"));
+
+  const canvas = $("score");
+  function pointer(e) { const r = canvas.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
+
+  canvas.addEventListener("mousedown", (e) => {
+    const [x, y] = pointer(e), h = score.hit(x, y);
+    if ((h.lane === "wave" || h.lane === "ruler") && audio) { audio.currentTime = h.t; draw(); return; }
+    if (h.mark) {
+      const m = moment(h.mark.n);
+      if (m.pass !== viewPass) { viewPass = m.pass; renderPasses(); }
+      selected = m.n;
+      const edge = m.kind === "range" ? h.mark.edge : "start";
+      if (edge) drag = { n: m.n, edge, x0: x, moved: false };
+      draw(); renderMoment();
+    }
+  });
+  // Pinch zooms around the cursor; swiping moves along the track when zoomed in.
+  canvas.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    const [x] = pointer(e);
+    if (e.ctrlKey) score.zoom(Math.exp(-e.deltaY * 0.01), x);
+    else score.pan(Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY);
+    draw();
+  }, { passive: false });
+  let gestureScale = 1;   // Safari reports pinch as gesture events instead
+  canvas.addEventListener("gesturestart", (e) => { e.preventDefault(); gestureScale = 1; });
+  canvas.addEventListener("gesturechange", (e) => {
+    e.preventDefault();
+    score.zoom(e.scale / gestureScale, pointer(e)[0]); gestureScale = e.scale; draw();
+  });
+  function zoomKey(factor) {
+    const m = moment(selected), x = m ? score.toX(m.t_s) : null;
+    score.zoom(factor, x != null && x >= 0 && x <= canvas.clientWidth ? x : undefined);
+    draw();
+  }
+
+  canvas.addEventListener("dblclick", (e) => {
+    const [x, y] = pointer(e), h = score.hit(x, y);
+    if (h.lane === "marks" && !h.mark) addMarkAt(h.t);
+  });
+  window.addEventListener("mousemove", (e) => {
+    const [x, y] = pointer(e);
+    if (!drag) {
+      const h = score.hit(x, y);
+      canvas.style.cursor = h.mark && h.lane === "marks" ? "ew-resize" : h.lane === "marks" ? "copy" : (audio && h.lane !== "energy" ? "text" : "default");
+      return;
+    }
+    if (!drag.moved && Math.abs(x - drag.x0) < 3) return;
+    if (!drag.moved) { snapshot(); drag.moved = true; }
+    const m = moment(drag.n), t = round(Math.max(0, score.toT(x)));
+    if (drag.edge === "end") m.t_end_s = Math.max(m.t_s + 0.1, t);
+    else if (m.kind === "range") m.t_s = Math.min(m.t_end_s - 0.1, t);
+    else m.t_s = t;
+    draw();
+  });
+  window.addEventListener("mouseup", () => {
+    if (drag && drag.moved) { persist(); renderMoment(); }
+    drag = null;
+  });
+
+  // ---------- header ----------
+  function bindHeader() {
+    $("title").value = s.track.title || "";
+    $("artist").value = s.track.artist || "";
+    $("date").value = s.date || "";
+    $("privateBtn").classList.toggle("on", !!s.private);
+  }
+  [["title", (v) => s.track.title = v], ["artist", (v) => s.track.artist = v], ["date", (v) => s.date = v]].forEach(([id, set]) => {
+    const el = $(id);
+    el.addEventListener("focus", snapshot);
+    el.addEventListener("input", () => { set(el.value); persist(); });
+    el.addEventListener("keydown", (e) => { if (e.key === "Enter") el.blur(); });
+  });
+  $("privateBtn").onclick = () => { change(() => { s.private = !s.private; }, { panels: false }); bindHeader(); };
+
+  function renderPasses() {
+    const box = $("passes"); box.innerHTML = "";
+    const list = s.passes.length ? s.passes : [{ n: 1 }];
+    list.forEach((p) => {
+      const b = document.createElement("button");
+      b.className = "btn" + (p.n === viewPass ? " on" : "");
+      b.textContent = String(p.n).padStart(2, "0");
+      b.onclick = () => { viewPass = p.n; const first = passMoments()[0]; selected = first ? first.n : null; renderPasses(); draw(); renderMoment(); };
+      box.appendChild(b);
+    });
+  }
+
+  // ---------- moment panel ----------
+  function chipList(values, removeAttr) {
+    return values.map((v, i) => '<button class="chip" data-' + removeAttr + '="' + i + '">' + E(v) + '<span class="x">×</span></button>').join("");
+  }
+  function suggList(values, attr) {
+    return values.map((v) => '<button class="chip sugg" data-' + attr + '="' + E(v) + '">' + E(v) + "</button>").join("");
+  }
+
+  function renderMoment() {
+    const box = $("momentPanel"), m = moment(selected);
+    if (!m) {
+      box.innerHTML = '<p class="label empty">' + (s.moments.length ? "Select a mark on the score" : "No marks yet · load a session from the Marker, or double-click the marks lane to add one") + "</p>";
+      return;
+    }
+    const kinds = ["tap", "range"].map((k) => '<button class="btn' + (m.kind === k ? " on" : "") + '" data-kind="' + k + '">' + k + "</button>").join("");
+    const sketchThumbs = s.sketches.length
+      ? s.sketches.map((sk) => '<img class="thumb' + (m.sketch === sk.file ? " on" : "") + '" data-sketch="' + E(sk.file) + '" alt="' + E(sk.caption || sk.file) + '" src="' + E(images.get(sk.file) ? images.get(sk.file).url : "") + '">').join("")
+      : '<span class="label dimmed">Add sketch photos in the session panel →</span>';
+    box.innerHTML =
+      '<h3>' + String(m.n).padStart(2, "0") + '<span class="label">Pass ' + String(m.pass).padStart(2, "0") + '</span>' +
+        '<span class="seg">' + kinds + '</span><button class="btn" id="delBtn" style="margin-left:auto">Delete</button></h3>' +
+      row("Time", '<div class="inline"><input class="field time" id="tStart" value="' + J.formatTime(m.t_s) + '">' +
+        (m.kind === "range" ? '<span class="label">→</span><input class="field time" id="tEnd" value="' + J.formatTime(m.t_end_s) + '">' : "") +
+        '<span class="label">Energy</span><input class="field time" id="mEnergy" value="' + (m.energy == null ? "" : m.energy.toFixed(2)) + '"></div>') +
+      row("Tags", '<div class="chips">' + chipList(m.tags, "rmtag") + '<input class="field" id="tagInput" placeholder="Add tag ⏎" style="width:140px"></div>' +
+        '<div class="chips sugg-row">' + suggList(suggestions("tags", m.tags), "addtag") + "</div>") +
+      row("Colors", '<div class="chips">' + m.colors.map((c, i) => '<button class="sw big" title="Remove ' + E(c) + '" data-rmcolor="' + i + '" style="background:' + E(c) + '"></button>').join("") +
+        '<button class="sw big add" id="addColor" title="Add a color">+</button></div>' +
+        '<div class="chips sugg-row">' + suggestions("colors", m.colors).map((c) => '<button class="sw" title="' + E(c) + '" data-addcolor="' + E(c) + '" style="background:' + E(c) + '"></button>').join("") + "</div>") +
+      row("Motion", '<input class="field full" data-text="motion" value="' + E(m.motion) + '" placeholder="Rising, spiral, scattering…">' +
+        '<div class="chips sugg-row">' + suggList(suggestions("motion", [m.motion]), "set-motion") + "</div>") +
+      row("Texture", '<input class="field full" data-text="texture" value="' + E(m.texture) + '" placeholder="Grainy, liquid, glass…">' +
+        '<div class="chips sugg-row">' + suggList(suggestions("texture", [m.texture]), "set-texture") + "</div>") +
+      row("Other", '<textarea class="area" data-text="other" placeholder="Anything that doesn\'t fit a field">' + E(m.other) + "</textarea>") +
+      row("Note", '<textarea class="area" data-text="note">' + E(m.note) + "</textarea>") +
+      row("Sketch", '<div class="thumbs">' + sketchThumbs + "</div>");
+
+    box.querySelectorAll("[data-kind]").forEach((b) => b.onclick = () => change(() => {
+      m.kind = b.dataset.kind;
+      if (m.kind === "range" && m.t_end_s == null) m.t_end_s = round(m.t_s + 2);
+      if (m.kind !== "range") m.t_end_s = null;
+    }));
+    $("delBtn").onclick = deleteSelected;
+    const timeField = (id, apply) => { const el = $(id); if (!el) return;
+      el.addEventListener("change", () => { const v = J.parseTime(el.value); if (v == null) { el.value = J.formatTime(apply()); return; } change(() => apply(round(v))); }); };
+    timeField("tStart", (v) => { if (v != null) { m.t_s = m.t_end_s != null ? Math.min(v, m.t_end_s - 0.1) : v; } return m.t_s; });
+    timeField("tEnd", (v) => { if (v != null) m.t_end_s = Math.max(v, m.t_s + 0.1); return m.t_end_s; });
+    $("mEnergy").addEventListener("change", (e) => { const v = parseFloat(e.target.value); change(() => { m.energy = isNaN(v) ? null : round(Math.min(1, Math.max(0, v)), 2); }); });
+
+    const tagInput = $("tagInput");
+    tagInput.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter" || !tagInput.value.trim()) return;
+      const v = tagInput.value.trim().toLowerCase();
+      change(() => { if (!m.tags.includes(v)) m.tags.push(v); });
+      $("tagInput").focus();
+    });
+    box.querySelectorAll("[data-rmtag]").forEach((b) => b.onclick = () => change(() => m.tags.splice(+b.dataset.rmtag, 1)));
+    box.querySelectorAll("[data-addtag]").forEach((b) => b.onclick = () => change(() => { if (!m.tags.includes(b.dataset.addtag)) m.tags.push(b.dataset.addtag); }));
+    box.querySelectorAll("[data-rmcolor]").forEach((b) => b.onclick = () => change(() => m.colors.splice(+b.dataset.rmcolor, 1)));
+    box.querySelectorAll("[data-addcolor]").forEach((b) => b.onclick = () => change(() => m.colors.push(b.dataset.addcolor)));
+    $("addColor").onclick = () => { const ci = $("colorInput"); ci.value = m.colors[m.colors.length - 1] || "#808080"; ci.click(); };
+    ["motion", "texture"].forEach((k) => box.querySelectorAll("[data-set-" + k + "]").forEach((b) => b.onclick = () => change(() => { m[k] = b.dataset["set" + k[0].toUpperCase() + k.slice(1)]; })));
+    box.querySelectorAll("[data-text]").forEach((el) => {
+      el.addEventListener("focus", snapshot);
+      el.addEventListener("input", () => { m[el.dataset.text] = el.value; persist(); });
+    });
+    box.querySelectorAll("[data-sketch]").forEach((img) => img.onclick = () => change(() => { m.sketch = m.sketch === img.dataset.sketch ? null : img.dataset.sketch; }));
+  }
+  function row(name, html) { return '<div class="row"><span class="label">' + name + "</span><div>" + html + "</div></div>"; }
+
+  $("colorInput").addEventListener("change", (e) => {
+    const m = moment(selected); if (!m) return;
+    change(() => m.colors.push(e.target.value));
+  });
+
+  // ---------- session panel ----------
+  function renderSession() {
+    const box = $("sessionPanel"), c = s.context;
+    const pinned = (file) => s.moments.filter((m) => m.sketch === file).map((m) => String(m.n).padStart(2, "0")).join(", ");
+    box.innerHTML =
+      "<h3>Session</h3>" +
+      row("Mood before", '<input class="field full" data-ctx="mood_before" value="' + E(c.mood_before) + '">') +
+      row("Mood after", '<input class="field full" data-ctx="mood_after" value="' + E(c.mood_after) + '">') +
+      row("Place", '<input class="field full" data-ctx="place" value="' + E(c.place) + '">') +
+      row("Time of day", '<input class="field full" data-ctx="time_of_day" value="' + E(c.time_of_day) + '">') +
+      row("Reflection", '<textarea class="area" id="reflection" style="min-height:120px">' + E(s.reflection) + "</textarea>") +
+      row("Track", '<div class="inline"><span class="data">' + E(s.track.source) + " · " + (s.track.duration_s ? J.formatTime(s.track.duration_s) : "length unknown") + "</span></div>" +
+        '<input class="field full" id="trackUrl" placeholder="Link (optional)" value="' + E(s.track.url) + '">') +
+      '<div class="row"><span class="label">Sketches</span><div><button class="btn" id="addPhotos">Add photos</button></div></div>' +
+      s.sketches.map((sk, i) =>
+        '<div class="sketch"><img alt="" src="' + E(images.get(sk.file) ? images.get(sk.file).url : "") + '">' +
+        '<div class="meta"><span class="label">' + E(sk.file) + (pinned(sk.file) ? " · mark " + pinned(sk.file) : " · not pinned") + "</span>" +
+        '<input class="field full" data-caption="' + i + '" placeholder="Caption" value="' + E(sk.caption) + '"></div>' +
+        '<button class="btn" data-rmsketch="' + i + '">Remove</button></div>').join("");
+
+    box.querySelectorAll("[data-ctx]").forEach((el) => {
+      el.addEventListener("focus", snapshot);
+      el.addEventListener("input", () => { s.context[el.dataset.ctx] = el.value; persist(); });
+    });
+    const refl = $("reflection");
+    refl.addEventListener("focus", snapshot);
+    refl.addEventListener("input", () => { s.reflection = refl.value; persist(); });
+    const url = $("trackUrl");
+    url.addEventListener("focus", snapshot);
+    url.addEventListener("input", () => { s.track.url = url.value; persist(); });
+    $("addPhotos").onclick = () => $("photoInput").click();
+    box.querySelectorAll("[data-caption]").forEach((el) => {
+      el.addEventListener("focus", snapshot);
+      el.addEventListener("input", () => { s.sketches[+el.dataset.caption].caption = el.value; persist(); });
+    });
+    box.querySelectorAll("[data-rmsketch]").forEach((b) => b.onclick = () => {
+      const sk = s.sketches[+b.dataset.rmsketch];
+      change(() => {
+        s.sketches.splice(+b.dataset.rmsketch, 1);
+        s.moments.forEach((m) => { if (m.sketch === sk.file) m.sketch = null; });
+      });
+    });
+  }
+
+  // Photos are shrunk to 1600px JPEGs so the public repo stays light.
+  async function addPhotos(files) {
+    let next = s.sketches.reduce((a, sk) => Math.max(a, parseInt((sk.file.match(/(\d+)/) || [0, 0])[1], 10)), 0) + 1;
+    const added = [], failed = [];
+    for (const file of files) {
+      try {
+        const bmp = await createImageBitmap(file);
+        const k = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+        const c = document.createElement("canvas");
+        c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+        c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+        const blob = await new Promise((r) => c.toBlob(r, "image/jpeg", 0.85));
+        const name = "sketch-" + J.pad(next++) + ".jpg";
+        setImage(name, blob);
+        J.db.set("draft-img:" + name, blob);
+        added.push({ file: name, t_start_s: null, t_end_s: null, caption: "" });
+      } catch (e) { failed.push(file.name); }
+    }
+    if (added.length) change(() => s.sketches.push(...added));
+    setStatus(failed.length ? "Couldn't read " + failed.join(", ") + ". iPhone HEIC photos: export as JPEG first." : "Added " + added.length + " photo" + (added.length === 1 ? "" : "s"));
+  }
+  function setImage(name, blob) {
+    const old = images.get(name); if (old) URL.revokeObjectURL(old.url);
+    images.set(name, { blob, url: URL.createObjectURL(blob) });
+  }
+
+  // ---------- loading ----------
+  async function load(session, imageBlobs, origin) {
+    if (s.moments.length && s.id !== session.id && !confirm("Replace the session open in the editor? Unsaved edits will be lost.")) return;
+    for (const sk of s.sketches) J.db.remove("draft-img:" + sk.file);
+    images.forEach((v) => URL.revokeObjectURL(v.url));
+    images = new Map();
+    s = normalize(session);
+    for (const [name, blob] of imageBlobs || []) { setImage(name, blob); J.db.set("draft-img:" + name, blob); }
+    selected = s.moments.length ? s.moments[0].n : null;
+    viewPass = s.passes.length ? s.passes[s.passes.length - 1].n : 1;
+    history = [];
+    persist(); renderAll(); draw();
+    setStatus("Opened " + (origin || "session") + " · " + s.moments.length + " marks");
+  }
+
+  async function restoreDraftImages() {
+    for (const sk of s.sketches) {
+      const blob = await J.db.get("draft-img:" + sk.file);
+      if (blob) setImage(sk.file, blob);
+    }
+    renderPanels();
+  }
+
+  $("fromMarkerBtn").onclick = () => {
+    const m = J.store.get(MARKER);
+    if (!m || !(m.moments || []).length) return setStatus("The Marker has no marks right now");
+    load(m, null, "from Marker");
+  };
+  $("openFileBtn").onclick = () => $("jsonInput").click();
+  $("jsonInput").onchange = async (e) => {
+    const f = e.target.files[0]; e.target.value = "";
+    if (!f) return;
+    try { load(JSON.parse(await f.text()), null, f.name); }
+    catch (err) { setStatus("That file isn't a session.json"); }
+  };
+  $("photoInput").onchange = (e) => { const files = [...e.target.files]; e.target.value = ""; if (files.length) addPhotos(files); };
+
+  // ---------- repo folder (Chrome / Edge) ----------
+  async function useFolder(handle) {
+    dir = handle; dirPending = null;
+    $("folderBtn").classList.add("on");
+    $("folderBtn").textContent = "Folder · " + handle.name;
+    await scanFolder();
+  }
+  async function connectFolder() {
+    if (!fsAccess) { setStatus("This browser can't save into folders. Save will download the files instead."); return false; }
+    try {
+      if (dirPending) {
+        if (await dirPending.requestPermission({ mode: "readwrite" }) === "granted") { await useFolder(dirPending); return true; }
+      }
+      const handle = await window.showDirectoryPicker({ id: "listening-journal", mode: "readwrite" });
+      try { await handle.getFileHandle("mark.html"); }
+      catch (e) { setStatus("Heads up: " + handle.name + " doesn't look like the journal repo (no mark.html)"); }
+      J.db.set("repo-dir", handle);
+      await useFolder(handle);
+      return true;
+    } catch (e) { return false; }
+  }
+  async function restoreFolder() {
+    if (!fsAccess) { $("folderBtn").hidden = true; return; }
+    const handle = await J.db.get("repo-dir");
+    if (!handle) return;
+    try {
+      if (await handle.queryPermission({ mode: "readwrite" }) === "granted") await useFolder(handle);
+      else { dirPending = handle; $("folderBtn").textContent = "Reconnect folder"; }
+    } catch (e) {}
+  }
+  async function scanFolder() {
+    library = [];
+    for (const base of ["sessions", "private"]) {
+      let d; try { d = await dir.getDirectoryHandle(base); } catch (e) { continue; }
+      for await (const [name, h] of d.entries()) {
+        if (h.kind !== "directory") continue;
+        try {
+          const f = await (await h.getFileHandle("session.json")).getFile();
+          library.push({ path: base + "/" + name, session: JSON.parse(await f.text()) });
+        } catch (e) {}
+      }
+    }
+    library.sort((a, b) => (b.session.date || "").localeCompare(a.session.date || ""));
+    const sel = $("sessionList");
+    sel.innerHTML = '<option value="">Open saved… (' + library.length + ")</option>" +
+      library.map((x, i) => '<option value="' + i + '">' + E((x.session.date || "") + " · " + (x.session.track.title || x.path)) + (x.path.startsWith("private") ? " · private" : "") + "</option>").join("");
+    sel.hidden = false;
+    renderPanels();
+  }
+  $("sessionList").onchange = async (e) => {
+    const item = library[+e.target.value]; e.target.value = "";
+    if (!item) return;
+    const [base, name] = item.path.split("/");
+    const folder = await (await dir.getDirectoryHandle(base)).getDirectoryHandle(name);
+    const blobs = [];
+    for (const sk of item.session.sketches || []) {
+      try { blobs.push([sk.file, await (await folder.getFileHandle(sk.file)).getFile()]); } catch (err) {}
+    }
+    await load(Object.assign({}, item.session, { _savedPath: item.path }), blobs, item.path);
+  };
+  $("folderBtn").onclick = connectFolder;
+
+  // ---------- saving ----------
+  function cleanCopy() {
+    const out = JSON.parse(JSON.stringify(s));
+    Object.keys(out).forEach((k) => { if (k.startsWith("_")) delete out[k]; });
+    out.id = J.sessionId(out.date, out.track);
+    return out;
+  }
+  async function writeFile(folder, name, data) {
+    const w = await (await folder.getFileHandle(name, { create: true })).createWritable();
+    await w.write(data); await w.close();
+  }
+  async function save() {
+    if (!s.track.title) { $("title").focus(); return setStatus("Add a title before saving"); }
+    const out = cleanCopy(), base = s.private ? "private" : "sessions", path = base + "/" + out.id;
+    if (!dir && fsAccess && !(await connectFolder())) return setStatus("Save needs the repo folder · click Folder");
+    if (dir) {
+      try {
+        if (await dir.queryPermission({ mode: "readwrite" }) !== "granted" && await dir.requestPermission({ mode: "readwrite" }) !== "granted") return setStatus("No permission to write to the folder");
+        const folder = await (await dir.getDirectoryHandle(base, { create: true })).getDirectoryHandle(out.id, { create: true });
+        await writeFile(folder, "session.json", JSON.stringify(out, null, 2) + "\n");
+        for (const sk of s.sketches) { const img = images.get(sk.file); if (img) await writeFile(folder, sk.file, img.blob); }
+        const moved = s._savedPath && s._savedPath !== path ? " · the old folder " + s._savedPath + " is still there" : "";
+        s._savedPath = path; s.id = out.id; persist();
+        setStatus("Saved to " + path + "/" + moved);
+        scanFolder();
+      } catch (e) { setStatus("Couldn't save: " + e.message); }
+      return;
+    }
+    // No folder access (Safari, Firefox): download everything and move it by hand.
+    J.download("session.json", JSON.stringify(out, null, 2) + "\n");
+    s.sketches.forEach((sk, i) => { const img = images.get(sk.file); if (img) setTimeout(() => J.download(sk.file, img.blob), 300 * (i + 1)); });
+    setStatus("Downloaded · move the files into " + path + "/");
+  }
+  $("saveBtn").onclick = save;
+
+  // ---------- audio (optional, for listening while editing) ----------
+  $("audioBtn").onclick = () => {
+    if (audio) { audio.pause(); audio = null; $("audioBtn").classList.remove("on"); draw(); return; }
+    $("audioInput").click();
+  };
+  $("audioInput").onchange = (e) => {
+    const f = e.target.files[0]; e.target.value = "";
+    if (!f) return;
+    audio = new Audio(URL.createObjectURL(f));
+    $("audioBtn").classList.add("on");
+    setStatus("Audio · " + f.name + " · space play/pause · N add mark at playhead · click waveform to seek");
+    (function tick() { if (!audio) return; if (!audio.paused) draw(); requestAnimationFrame(tick); })();
+    draw();
+  };
+
+  // ---------- keys ----------
+  const typing = (e) => e.target instanceof Element && e.target.matches("input, select, textarea");
+  document.addEventListener("keydown", (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") { e.preventDefault(); save(); return; }
+    if (typing(e)) { if (e.key === "Escape") e.target.blur(); return; }
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") { e.preventDefault(); undo(); return; }
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key === "ArrowLeft") { e.preventDefault(); step(-1); }
+    else if (e.key === "ArrowRight") { e.preventDefault(); step(1); }
+    else if (e.key === "Backspace" || e.key === "Delete") { e.preventDefault(); deleteSelected(); }
+    else if (e.key.toLowerCase() === "z") undo();
+    else if (e.key === "=" || e.key === "+") zoomKey(2);
+    else if (e.key === "-") zoomKey(0.5);
+    else if (e.key === "0") { score.fit(); draw(); }
+    else if (e.code === "Space" && audio) { e.preventDefault(); audio.paused ? audio.play() : audio.pause(); draw(); }
+    else if (e.key.toLowerCase() === "n" && audio) addMarkAt(audio.currentTime);
+  });
+
+  // ---------- start ----------
+  function renderPanels() { renderMoment(); renderSession(); }
+  function renderAll() { bindHeader(); renderPasses(); renderPanels(); }
+  renderAll(); draw();
+  restoreDraftImages();
+  restoreFolder();
+  setStatus(s.moments.length ? "Draft restored · " + s.moments.length + " marks" : "From marker loads your latest listen");
+})();
+</script>
+</body>
+</html>
