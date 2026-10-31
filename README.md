@@ -12,3 +12,10 @@ Paper sketches come first. This repo adds **time**: one tap in the moment to mar
 _Work in progress. Next: the session editor for filling in moments after listening._
 
 Run locally: `python3 -m http.server 8765`, then open http://localhost:8765/mark.html
+
+
+# todo
+- claude language output
+- design system clean up
+- touch interface design
+- sound wave clean up 
