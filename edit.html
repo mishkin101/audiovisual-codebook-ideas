@@ -4,12 +4,15 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Session Editor</title>
-  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="assets/style.css?v=2">
   <style>
     body { display: grid; grid-template-rows: var(--bar) 44vh var(--bar) 1fr; overflow: hidden; }
     .bar { display: flex; align-items: center; gap: var(--u2); padding: 0 var(--u2); min-width: 0; overflow: hidden; border-bottom: var(--hair) solid var(--rule); }
     .bar .push { margin-left: auto; display: flex; gap: var(--u); align-items: center; }
     .tools { border-top: var(--hair) solid var(--rule); }
+    .home { border: none; font: var(--t-label); letter-spacing: var(--track-label); text-transform: uppercase; color: var(--mid); white-space: nowrap; flex: none; }
+    .home:hover { color: var(--live); }
+
     #status { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
     #stage { position: relative; min-height: 0; }
     #score { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
@@ -62,6 +65,7 @@
 </head>
 <body>
   <header class="bar">
+    <a class="home" href="index.html" title="Back to the gallery">← Gallery</a>
     <span class="label" style="color: var(--live)">Editor</span>
     <input class="field" id="title" placeholder="Title" autocomplete="off" style="width: 20%">
     <input class="field" id="artist" placeholder="Artist" autocomplete="off" style="width: 14%">
@@ -96,8 +100,8 @@
   <input type="file" id="photoInput" accept="image/*" multiple hidden>
   <input type="color" id="colorInput" class="hidden">
 
-<script src="assets/journal.js"></script>
-<script src="assets/score.js"></script>
+<script src="assets/journal.js?v=2"></script>
+<script src="assets/score.js?v=2"></script>
 <script>
 (function () {
   const J = window.Journal, E = J.escape;
@@ -526,12 +530,28 @@
       }
     }
     library.sort((a, b) => (b.session.date || "").localeCompare(a.session.date || ""));
+    writeIndexes();
     const sel = $("sessionList");
     sel.innerHTML = '<option value="">Open saved… (' + library.length + ")</option>" +
       library.map((x, i) => '<option value="' + i + '">' + E((x.session.date || "") + " · " + (x.session.track.title || x.path)) + (x.path.startsWith("private") ? " · private" : "") + "</option>").join("");
     sel.hidden = false;
     renderPanels();
   }
+  // The gallery reads sessions/index.json (and private/index.json on this computer only).
+  async function writeIndexes() {
+    for (const base of ["sessions", "private"]) {
+      const items = library.filter((x) => x.path.startsWith(base + "/")).map((x) => J.summarize(x.session, x.path));
+      try {
+        let d;
+        try { d = await dir.getDirectoryHandle(base, { create: items.length > 0 }); } catch (e) { continue; }
+        const text = JSON.stringify({ sessions: items }, null, 1) + "\n";
+        let old = "";
+        try { old = await (await (await d.getFileHandle("index.json")).getFile()).text(); } catch (e) {}
+        if (old !== text) await writeFile(d, "index.json", text);
+      } catch (e) {}
+    }
+  }
+
   $("sessionList").onchange = async (e) => {
     const item = library[+e.target.value]; e.target.value = "";
     if (!item) return;

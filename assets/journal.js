@@ -108,5 +108,57 @@
     };
   })();
 
-  window.Journal = { pad, formatTime, parseTime, slug, today, clockTime, sessionId, newMoment, store, db, download, escape };
+  // Seconds a session spans, taken from the session itself: the track length when known (local files),
+  // else the longest pass, the captured waveform and the marks. While a pass is running with no known
+  // length, the span grows just ahead of the playhead. 4 minutes is only a placeholder for an empty session.
+  function duration(session, t, running) {
+    let known = (session.track && session.track.duration_s) || 0;
+    (session.passes || []).forEach((p) => { if (p.ended_s) known = Math.max(known, p.ended_s); });
+    (session.moments || []).forEach((m) => { known = Math.max(known, m.t_end_s || m.t_s); });
+    const wf = session.waveform;
+    if (wf && wf.peaks && wf.peaks.length && wf.rate_hz) known = Math.max(known, wf.peaks.length / wf.rate_hz);
+    if (running) return Math.max(known, (t || 0) * 1.1, 30);
+    return Math.max(known, t || 0) || 240;
+  }
+
+  // A small summary of a session for the gallery's index.json: enough to draw a mini score
+  // without loading every full session (waveforms are large).
+  function summarize(session, path) {
+    const dur = duration(session), passes = session.passes || [], moments = session.moments || [];
+    const last = passes.length ? passes[passes.length - 1].n : 1;
+    const r2 = (x) => Math.round(x * 100) / 100;
+    const wf = session.waveform || { peaks: [], rate_hz: 50 }, bins = 160, wave = [];
+    if (wf.peaks.length) {
+      let max = 0; wf.peaks.forEach((p) => { if (p > max) max = p; });
+      for (let i = 0; i < bins; i++) {
+        const a = Math.floor((i / bins) * dur * wf.rate_hz), b = Math.max(a + 1, Math.floor(((i + 1) / bins) * dur * wf.rate_hz));
+        let m = 0; for (let j = a; j < b && j < wf.peaks.length; j++) if (wf.peaks[j] > m) m = wf.peaks[j];
+        wave.push(max ? r2(m / max) : 0);
+      }
+    }
+    const lastPass = passes.find((p) => p.n === last), log = (lastPass && lastPass.energy_log) || [];
+    const step = Math.max(1, Math.ceil(log.length / 100));
+    const energy = log.filter((_, i) => i % step === 0 || i === log.length - 1).map((p) => [r2(p.t_s), r2(p.energy)]);
+    if (lastPass && lastPass.ended_s && energy.length) energy.push([lastPass.ended_s, energy[energy.length - 1][1]]);
+    const count = (key) => {
+      const c = new Map();
+      moments.forEach((m) => [].concat(m[key] || []).forEach((v) => { if (v) c.set(v, (c.get(v) || 0) + 1); }));
+      return [...c.entries()].sort((a, b) => b[1] - a[1]).map(([k]) => k);
+    };
+    return {
+      path, id: session.id, date: session.date, private: !!session.private,
+      title: session.track ? session.track.title : "", artist: session.track ? session.track.artist : "",
+      duration_s: r2(dur), passes: passes.length, marks: moments.length,
+      tags: count("tags").slice(0, 6), colors: count("colors").slice(0, 10),
+      sketch: session.sketches && session.sketches.length ? session.sketches[0].file : null,
+      mini: {
+        wave,
+        // [start, end or null, colors, true when from the latest pass]
+        marks: moments.map((m) => [r2(m.t_s), m.t_end_s == null ? null : r2(m.t_end_s), m.colors || [], m.pass === last]),
+        energy
+      }
+    };
+  }
+
+  window.Journal = { pad, formatTime, parseTime, slug, today, clockTime, sessionId, newMoment, store, db, download, escape, duration, summarize };
 })();

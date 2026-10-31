@@ -4,13 +4,16 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Listening Marker</title>
-  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="assets/style.css?v=2">
   <style>
     body { display: grid; grid-template-rows: var(--bar) 1fr var(--bar); overflow: hidden; user-select: none; -webkit-user-select: none; }
     .bar { display: flex; align-items: center; gap: var(--u2); padding: 0 var(--u2); min-width: 0; overflow: hidden; }
     header.bar { border-bottom: var(--hair) solid var(--rule); }
     footer.bar { border-top: var(--hair) solid var(--rule); }
     .bar .push { margin-left: auto; }
+    .home { border: none; font: var(--t-label); letter-spacing: var(--track-label); text-transform: uppercase; color: var(--mid); white-space: nowrap; flex: none; }
+    .home:hover { color: var(--live); }
+
     .grow { flex: 1; min-width: 0; }
     .readout { display: flex; align-items: baseline; gap: var(--u2); white-space: nowrap; }
     #clock { font: var(--t-title); color: var(--live); min-width: 9ch; text-align: right; }
@@ -18,8 +21,8 @@
     #level i { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--bright); }
     #status { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     #device { width: 180px; flex: none; }
-    body.running .bar { opacity: 0.35; }
-    body.running .bar:hover { opacity: 1; }
+    body.running.dim-bars .bar { opacity: 0.35; }
+    body.running.dim-bars .bar:hover { opacity: 1; }
 
     #stage { position: relative; min-height: 0; cursor: crosshair; }
     body.running.locked #stage { cursor: none; }
@@ -30,23 +33,58 @@
       background: var(--void); padding: var(--u2) var(--u3); border: var(--hair) solid var(--rule);
     }
 
-    #test {
-      position: absolute; inset: 0; background: var(--void); display: none;
-      grid-template-columns: repeat(3, 1fr); grid-template-rows: auto 1fr;
-    }
-    #test.open { display: grid; }
-    #test .intro { grid-column: 1 / -1; padding: var(--u3) var(--u2); border-bottom: var(--hair) solid var(--rule); display: flex; gap: var(--u3); align-items: baseline; }
-    #test .cell { border-right: var(--hair) solid var(--rule); padding: var(--u3) var(--u2); display: flex; flex-direction: column; gap: var(--u2); min-width: 0; }
-    #test .cell:last-child { border-right: none; }
-    #test .big { font: var(--t-display); color: var(--dim); }
-    #test .big.hot { color: var(--live); }
-    #test .meter { height: 120px; border: var(--hair) solid var(--rule); position: relative; }
-    #test .meter i { position: absolute; left: 0; right: 0; bottom: 50%; height: 1px; background: var(--live); }
-    #test .meter::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; border-top: var(--hair) dashed var(--rule); }
+    /* keys / settings / input test panel */
+    #panel { position: absolute; inset: 0; background: var(--void); display: none; flex-direction: column; }
+    #panel.open { display: flex; }
+    .tabs { display: flex; border-bottom: var(--hair) solid var(--rule); flex: none; }
+    .tab { font: var(--t-label); letter-spacing: var(--track-label); text-transform: uppercase; color: var(--mid); background: var(--void);
+      border: none; border-right: var(--hair) solid var(--rule); height: var(--bar); padding: 0 var(--u3); cursor: pointer; display: flex; align-items: center; gap: var(--u); }
+    .tab:hover { color: var(--live); }
+    .tab.on { background: var(--live); color: var(--void); }
+    .tabs .close { margin-left: auto; align-self: center; padding: 0 var(--u2); }
+    kbd { font: var(--t-label); letter-spacing: 0.08em; border: var(--hair) solid currentColor; padding: 3px 6px; display: inline-block; min-width: 22px; text-align: center; }
+    .pane { display: none; flex: 1; min-height: 0; overflow: auto; }
+    .pane.on { display: grid; }
+
+    .pane[data-pane="keys"] { grid-template-columns: repeat(3, 1fr); align-content: start; }
+    .keycol { padding: var(--u3) var(--u2); border-right: var(--hair) solid var(--rule); }
+    .keycol:last-child { border-right: none; }
+    .keycol > .label { display: block; margin-bottom: var(--u2); color: var(--live); }
+    .k { display: grid; grid-template-columns: 148px 1fr; gap: var(--u2); padding: 10px 0; border-top: var(--hair) solid var(--rule); align-items: center; }
+    .k .keys { display: flex; gap: 4px; flex-wrap: wrap; color: var(--bright); }
+    .k .what { color: var(--mid); }
+    .rebind { background: none; border: none; padding: 0; cursor: pointer; color: var(--bright); font: inherit; }
+    .rebind:hover kbd { background: var(--live); color: var(--void); border-color: var(--live); }
+    .rebind.listening kbd { background: var(--live); color: var(--void); border-color: var(--live); }
+    .keysfoot { grid-column: 1 / -1; display: flex; gap: var(--u3); align-items: center; padding: var(--u2); border-top: var(--hair) solid var(--rule); }
+
+    .pane[data-pane="settings"] { grid-template-columns: minmax(0, 760px); align-content: start; padding: var(--u3) var(--u2); }
+    .set { display: grid; grid-template-columns: 200px 300px 1fr; gap: var(--u3); padding: var(--u2) 0; border-top: var(--hair) solid var(--rule); align-items: center; }
+    .set .what { color: var(--dim); font: var(--t-data); line-height: 1.5; }
+    .seg { display: flex; }
+    .seg .btn + .btn { border-left: none; }
+    .slider { display: flex; align-items: center; gap: var(--u2); }
+    input[type="range"] { -webkit-appearance: none; appearance: none; width: 200px; height: 20px; background: transparent; margin: 0; cursor: pointer; }
+    input[type="range"]::-webkit-slider-runnable-track { height: 1px; background: var(--mid); }
+    input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 8px; height: 20px; background: var(--live); margin-top: -9.5px; border: none; }
+    input[type="range"]::-moz-range-track { height: 1px; background: var(--mid); }
+    input[type="range"]::-moz-range-thumb { width: 8px; height: 20px; background: var(--live); border: none; border-radius: 0; }
+
+    .pane[data-pane="test"] { grid-template-columns: repeat(3, 1fr); grid-template-rows: auto 1fr; }
+    .pane[data-pane="test"] .intro { grid-column: 1 / -1; padding: var(--u3) var(--u2); border-bottom: var(--hair) solid var(--rule); }
+    .cell { border-right: var(--hair) solid var(--rule); padding: var(--u3) var(--u2); display: flex; flex-direction: column; gap: var(--u2); min-width: 0; }
+    .cell:last-child { border-right: none; }
+    .big { font: var(--t-display); color: var(--dim); }
+    .big.hot { color: var(--live); }
+    .meter { height: 120px; border: var(--hair) solid var(--rule); position: relative; }
+    .meter i { position: absolute; left: 0; right: 0; bottom: 50%; height: 1px; background: var(--live); }
+    .meter::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; border-top: var(--hair) dashed var(--rule); }
+    #keysBtn kbd { border: none; padding: 0; min-width: 0; }
   </style>
 </head>
 <body>
   <header class="bar">
+    <a class="home" href="index.html" title="Back to the gallery">← Gallery</a>
     <input class="field" id="title" placeholder="Title" autocomplete="off" style="width: 22%">
     <input class="field" id="artist" placeholder="Artist" autocomplete="off" style="width: 16%">
     <input class="field" id="moodBefore" placeholder="Mood before" autocomplete="off" style="width: 16%">
@@ -62,25 +100,35 @@
     <canvas id="score"></canvas>
     <div id="hint" class="label"></div>
 
-    <div id="test">
-      <div class="intro">
-        <span class="label" style="color: var(--live)">Input test</span>
-        <span class="label">Try each gesture, then try them at the same time. Nothing is recorded. T to close.</span>
+    <div id="panel">
+      <div class="tabs">
+        <button class="tab" data-tab="keys">Keys <kbd data-keyof="keys"></kbd></button>
+        <button class="tab" data-tab="settings">Settings <kbd data-keyof="settings"></kbd></button>
+        <button class="tab" data-tab="test">Input test <kbd data-keyof="test"></kbd></button>
+        <button class="btn close" id="closePanel">Close <kbd style="border:none;padding:0">Esc</kbd></button>
       </div>
-      <div class="cell">
-        <span class="label">Two-finger swipe</span>
-        <div class="meter"><i id="tSwipeBar"></i></div>
-        <span class="data" id="tSwipe">0 events</span>
-      </div>
-      <div class="cell">
-        <span class="label">Space · tap / hold</span>
-        <span class="big" id="tClickState">UP</span>
-        <span class="data" id="tClick">0 presses · last hold 0.00s</span>
-      </div>
-      <div class="cell">
-        <span class="label">Together</span>
-        <span class="big" id="tBothState">—</span>
-        <span class="data" id="tBoth">swipe while space held: 0<br>space while swiping: 0</span>
+
+      <div class="pane" data-pane="keys" id="keysPane"></div>
+
+      <div class="pane" data-pane="settings" id="settingsPane"></div>
+
+      <div class="pane" data-pane="test">
+        <div class="intro"><span class="label">Try each gesture, then try them at the same time. Nothing is recorded while this tab is open.</span></div>
+        <div class="cell">
+          <span class="label">Two-finger swipe</span>
+          <div class="meter"><i id="tSwipeBar"></i></div>
+          <span class="data" id="tSwipe">0 events</span>
+        </div>
+        <div class="cell">
+          <span class="label">Space · tap / hold</span>
+          <span class="big" id="tClickState">UP</span>
+          <span class="data" id="tClick">0 presses · last hold 0.00s</span>
+        </div>
+        <div class="cell">
+          <span class="label">Together</span>
+          <span class="big" id="tBothState">—</span>
+          <span class="data" id="tBoth">swipe while space held: 0<br>space while swiping: 0</span>
+        </div>
       </div>
     </div>
   </div>
@@ -98,19 +146,57 @@
     <button class="btn" id="stopBtn" disabled>Stop</button>
     <button class="btn" id="exportBtn">Export</button>
     <button class="btn" id="resetBtn">Reset</button>
-    <button class="btn" id="testBtn">Test</button>
+    <button class="btn" id="settingsBtn" title="Settings (,)">Settings</button>
+    <button class="btn" id="keysBtn" title="Keys"><kbd data-keyof="keys"></kbd> Keys</button>
     <input type="file" id="fileInput" accept="audio/*" hidden>
   </footer>
 
-<script src="assets/journal.js"></script>
-<script src="assets/score.js"></script>
+<script src="assets/journal.js?v=2"></script>
+<script src="assets/score.js?v=2"></script>
 <script>
 (function () {
   const J = window.Journal;
   const KEY = "journal.marker.current";
-  const HOLD_MS = 300;
   const RATE = 50;              // waveform samples per second
-  const SWIPE_PER_UNIT = 800;   // pixels of scroll for the full 0-1 energy range
+  const SWIPE_PER_UNIT = 800;   // pixels of scroll for the full 0-1 energy range at sensitivity 1
+
+  // Settings belong to this browser, not to a session.
+  const SETTINGS = "journal.marker.settings";
+  const DEFAULTS = { invert: false, sensitivity: 1, holdMs: 300, startEnergy: 0.5, hideCursor: true, dimBars: true };
+  const settings = Object.assign({}, DEFAULTS, J.store.get(SETTINGS) || {});
+
+  // Key bindings: action -> KeyboardEvent.code (the physical key, whatever the keyboard layout).
+  const ACTIONS = [
+    { id: "start", group: "Listen", what: "Start a pass · new pass", key: "Enter" },
+    { id: "mark", group: "Listen", what: "Tap: instant mark · hold: range", key: "Space" },
+    { id: "energyUp", group: "Listen", what: "Energy up", key: "ArrowUp" },
+    { id: "energyDown", group: "Listen", what: "Energy down", key: "ArrowDown" },
+    { id: "stop", group: "Listen", what: "Stop the pass", key: "KeyS" },
+    { id: "export", group: "Session", what: "Export session.json", key: "KeyE" },
+    { id: "file", group: "Session", what: "Source: audio file", key: "KeyF" },
+    { id: "private", group: "Session", what: "Private on / off", key: "KeyP" },
+    { id: "zoomIn", group: "View", what: "Zoom in", key: "Equal" },
+    { id: "zoomOut", group: "View", what: "Zoom out", key: "Minus" },
+    { id: "zoomFit", group: "View", what: "Fit the whole song", key: "Digit0" },
+    { id: "keys", group: "View", what: "This list", key: "Slash" },
+    { id: "settings", group: "View", what: "Settings", key: "Comma" },
+    { id: "test", group: "View", what: "Input test", key: "KeyT" },
+    { id: "invert", group: "View", what: "Flip swipe direction", key: "KeyI" }
+  ];
+  const DEFAULT_KEYS = Object.fromEntries(ACTIONS.map((a) => [a.id, a.key]));
+  settings.keys = Object.assign({}, DEFAULT_KEYS, settings.keys || {});
+  const KEY_NAMES = { Space: "Space", Enter: "Enter", ArrowUp: "↑", ArrowDown: "↓", ArrowLeft: "←", ArrowRight: "→", Slash: "?", Comma: ",", Period: ".",
+    Equal: "+", Minus: "−", Semicolon: ";", Quote: "'", Backquote: "`", BracketLeft: "[", BracketRight: "]", Backslash: "\\", Tab: "Tab", Backspace: "⌫", Delete: "Del" };
+  function keyName(code) {
+    if (!code) return "—";
+    if (KEY_NAMES[code]) return KEY_NAMES[code];
+    if (/^Key[A-Z]$/.test(code)) return code.slice(3);
+    if (/^Digit\d$/.test(code)) return code.slice(5);
+    if (/^Numpad/.test(code)) return "Num " + code.slice(6);
+    return code;
+  }
+  const keyOf = (id) => keyName(settings.keys[id]);
+  const actionFor = (code) => Object.keys(settings.keys).find((id) => settings.keys[id] === code);
   const $ = (id) => document.getElementById(id);
 
   // ---------- session state ----------
@@ -122,12 +208,13 @@
       passes: [], moments: [], sketches: [], reflection: "",
       waveform: { source: null, rate_hz: RATE, peaks: [] },
       audio_features: null,
-      _marker: { running: false, startMs: null, energy: 0.5, nextN: 1, lastT: 0, invert: false }
+      _marker: { running: false, startMs: null, energy: settings.startEnergy, nextN: 1, lastT: 0 }
     };
   }
   let s = J.store.get(KEY) || blankSession();
   if (!s.waveform) s.waveform = { source: null, rate_hz: RATE, peaks: [] };
-  if (typeof s._marker.energy !== "number" || s._marker.energy > 1) s._marker.energy = 0.5;
+  if (typeof s._marker.energy !== "number" || s._marker.energy > 1) s._marker.energy = settings.startEnergy;
+  if (s._marker.invert) { settings.invert = true; delete s._marker.invert; }   // older sessions kept this per session
 
   // A reload ends a running pass where it was last saved (the audio can't survive a reload).
   if (s._marker.running) {
@@ -267,6 +354,7 @@
   // ---------- passes ----------
   function startPass() {
     if (s._marker.running || test.open) return;
+    if (panelTab) closePanel();
     const t0 = Date.now();
     s.passes.push({ n: s.passes.length + 1, started: J.clockTime(t0), ended_s: null, energy_log: [] });
     if (!s.context.time_of_day) {
@@ -295,6 +383,7 @@
   }
 
   function lock() {
+    if (!settings.hideCursor) return;
     try { const r = $("stage").requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (e) {}
   }
 
@@ -311,7 +400,7 @@
   function beginHold() {
     if (!s._marker.running || hold) return;
     hold = { t: now(), range: false };
-    hold.timer = setTimeout(() => { if (hold) { hold.range = true; dirty = true; } }, HOLD_MS);
+    hold.timer = setTimeout(() => { if (hold) { hold.range = true; dirty = true; } }, settings.holdMs);
   }
 
   function endHold() {
@@ -367,18 +456,89 @@
     $("clock").textContent = J.formatTime(now());
     const hint = $("hint");
     if (running && lockLost) hint.innerHTML = "Click to hide the cursor again<br>Space still marks · S to stop";
-    else if (!running && !s.passes.length) hint.innerHTML = "Choose a source below<br>Enter start · space mark · hold space range<br>two-finger swipe energy<br>T test input";
+    else if (!running && !s.passes.length) hint.innerHTML = "Choose a source below<br>" + keyOf("start") + " start · " + keyOf("mark") + " mark · hold " + keyOf("mark") + " range<br>two-finger swipe energy<br>" + keyOf("keys") + " keys and settings";
     else hint.innerHTML = "";
     hint.style.display = hint.innerHTML ? "" : "none";
   }
 
   // ---------- input test ----------
   const test = { open: false, swipes: 0, swipeSum: 0, presses: 0, both1: 0, both2: 0, down: false, downAt: 0, lastWheel: 0, lastHold: 0 };
-  function toggleTest() {
-    test.open = !test.open;
+  // ---------- panel: keys / settings / input test ----------
+  let panelTab = null;
+  function openPanel(tab) {
+    if (panelTab === tab) return closePanel();
+    panelTab = tab;
+    test.open = tab === "test";
     if (test.open) stopPass();
-    $("test").classList.toggle("open", test.open);
-    $("testBtn").classList.toggle("on", test.open);
+    if (tab === "settings") renderSettings();
+    if (tab === "keys") renderKeys();
+    renderPanel();
+  }
+  function closePanel() { panelTab = null; test.open = false; capturing = null; renderPanel(); }
+  function renderPanel() {
+    $("panel").classList.toggle("open", !!panelTab);
+    document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("on", t.dataset.tab === panelTab));
+    document.querySelectorAll(".pane").forEach((p) => p.classList.toggle("on", p.dataset.pane === panelTab));
+    $("keysBtn").classList.toggle("on", panelTab === "keys");
+    $("settingsBtn").classList.toggle("on", panelTab === "settings");
+  }
+
+  // ---------- key bindings ----------
+  let capturing = null;   // action id waiting for a new key
+  function renderKeys() {
+    const row = (keysHtml, what) => '<div class="k"><span class="keys">' + keysHtml + '</span><span class="what">' + what + "</span></div>";
+    const fixed = {
+      Listen: [row('<span class="label">two-finger swipe</span>', "Energy, 0.00 to 1.00")],
+      Session: [row("<kbd>Esc</kbd>", "Show the cursor · close this panel")],
+      View: [row('<span class="label">pinch</span>', "Zoom the timeline")]
+    };
+    const col = (group) => '<div class="keycol"><span class="label">' + group + "</span>" +
+      ACTIONS.filter((a) => a.group === group).map((a) => row(
+        '<button class="rebind' + (capturing === a.id ? " listening" : "") + '" data-rebind="' + a.id + '" title="Click, then press a new key">' +
+        "<kbd>" + (capturing === a.id ? "Press a key" : J.escape(keyOf(a.id))) + "</kbd></button>" +
+        (a.id === "mark" ? '<span class="label">hold</span>' : ""), a.what)).join("") +
+      fixed[group].join("") + "</div>";
+    $("keysPane").innerHTML = col("Listen") + col("Session") + col("View") +
+      '<div class="keysfoot"><button class="btn" id="resetKeys">Restore default keys</button>' +
+      '<span class="label dimmed">' + (capturing ? "Press the new key · Esc to cancel" : "Click any key to change it") + "</span></div>";
+    $("keysPane").querySelectorAll("[data-rebind]").forEach((b) => b.onclick = () => { capturing = capturing === b.dataset.rebind ? null : b.dataset.rebind; renderKeys(); });
+    $("resetKeys").onclick = () => { settings.keys = Object.assign({}, DEFAULT_KEYS); capturing = null; saveSettings(); setStatus("Default keys restored"); };
+    document.querySelectorAll("[data-keyof]").forEach((k) => k.textContent = keyOf(k.dataset.keyof));
+  }
+  const MODIFIERS = ["ShiftLeft", "ShiftRight", "MetaLeft", "MetaRight", "AltLeft", "AltRight", "ControlLeft", "ControlRight", "CapsLock", "Fn"];
+  function finishCapture(code) {
+    const id = capturing; capturing = null;
+    const other = actionFor(code);
+    if (other && other !== id) {
+      settings.keys[other] = settings.keys[id];           // swap so no action loses its key
+      setStatus(keyName(code) + " now " + ACTIONS.find((a) => a.id === id).what.toLowerCase() + " · " + ACTIONS.find((a) => a.id === other).what + " moved to " + keyName(settings.keys[other]));
+    } else setStatus(keyName(code) + " · " + ACTIONS.find((a) => a.id === id).what);
+    settings.keys[id] = code;
+    saveSettings();
+  }
+
+  function saveSettings() { J.store.set(SETTINGS, settings); applySettings(); renderSettings(); renderKeys(); renderBars(); }
+  function applySettings() { document.body.classList.toggle("dim-bars", settings.dimBars); }
+  function renderSettings() {
+    const seg = (key, options) => '<div class="seg">' + options.map(([v, text]) =>
+      '<button class="btn' + (settings[key] === v ? " on" : "") + '" data-set="' + key + '" data-val="' + JSON.stringify(v).replace(/"/g, "&quot;") + '">' + text + "</button>").join("") + "</div>";
+    const slider = (key, min, max, step, fmt) => '<div class="slider"><input type="range" data-range="' + key + '" min="' + min + '" max="' + max + '" step="' + step + '" value="' + settings[key] + '">' +
+      '<span class="data" id="val-' + key + '">' + fmt(settings[key]) + "</span></div>";
+    const row = (name, control, what) => '<div class="set"><span class="label">' + name + "</span>" + control + '<span class="what">' + what + "</span></div>";
+    $("settingsPane").innerHTML = "<div>" +
+      row("Swipe direction", seg("invert", [[false, "Natural"], [true, "Inverted"]]), "Natural: swiping up raises energy (with macOS natural scrolling). Also <kbd>" + J.escape(keyOf("invert")) + "</kbd>.") +
+      row("Swipe sensitivity", slider("sensitivity", 0.25, 3, 0.25, (v) => (+v).toFixed(2) + "×"), "How far one swipe moves energy. Higher = less finger travel.") +
+      row("Hold for range after", seg("holdMs", [[150, "150 ms"], [300, "300 ms"], [500, "500 ms"]]), "How long space must be held before a tap becomes a range.") +
+      row("Starting energy", slider("startEnergy", 0, 1, 0.05, (v) => (+v).toFixed(2)), "Energy level when a new session begins.") +
+      row("Hide cursor in a pass", seg("hideCursor", [[true, "On"], [false, "Off"]]), "Hides and captures the cursor while listening. Esc shows it again.") +
+      row("Fade bars in a pass", seg("dimBars", [[true, "On"], [false, "Off"]]), "Dims the header and footer while listening.") +
+      '<div class="set"><span class="label">Reset</span><button class="btn" id="resetSettings">Restore defaults</button><span class="what">Settings are saved in this browser.</span></div></div>';
+    $("settingsPane").querySelectorAll("[data-set]").forEach((b) => b.onclick = () => { settings[b.dataset.set] = JSON.parse(b.dataset.val); saveSettings(); });
+    $("settingsPane").querySelectorAll("[data-range]").forEach((r) => {
+      const key = r.dataset.range, fmt = key === "sensitivity" ? (v) => (+v).toFixed(2) + "×" : (v) => (+v).toFixed(2);
+      r.addEventListener("input", () => { settings[key] = +r.value; $("val-" + key).textContent = fmt(r.value); J.store.set(SETTINGS, settings); });
+    });
+    $("resetSettings").onclick = () => { Object.assign(settings, DEFAULTS); saveSettings(); };
   }
   function renderTest() {
     $("tSwipe").textContent = test.swipes + " events · Δ " + Math.round(test.swipeSum);
@@ -408,12 +568,34 @@
   $("systemBtn").onclick = startSystem;
   $("startBtn").onclick = startPass;
   $("stopBtn").onclick = stopPass;
-  $("testBtn").onclick = toggleTest;
-  $("exportBtn").onclick = () => {
+  $("keysBtn").onclick = () => openPanel("keys");
+  $("settingsBtn").onclick = () => openPanel("settings");
+  $("closePanel").onclick = closePanel;
+  document.querySelectorAll(".tab").forEach((t) => t.onclick = () => openPanel(t.dataset.tab));
+  // The file is named after the title. In Chrome a save dialog lets you change the name and pick the folder.
+  function exportName() {
+    const name = (s.track.title || "").trim().replace(/[\/\\:*?"<>|]+/g, "-").replace(/\s+/g, " ").slice(0, 80);
+    return (name || "session") + ".json";
+  }
+  async function exportSession() {
+    if (!s.moments.length && !s.passes.length) return setStatus("Nothing to export yet");
     const out = JSON.parse(JSON.stringify(s)); delete out._marker; out.id = J.sessionId(out.date, out.track);
-    J.download("session.json", JSON.stringify(out, null, 2));
-    setStatus("Exported · move into " + (s.private ? "private/" : "sessions/") + (out.id || "<date-artist-track>") + "/");
-  };
+    const text = JSON.stringify(out, null, 2), name = exportName();
+    if (!s.track.title) setStatus("Tip: add a title first and the file will be named after it");
+    if (window.showSaveFilePicker) {
+      if (document.pointerLockElement) document.exitPointerLock();
+      try {
+        const handle = await window.showSaveFilePicker({ suggestedName: name, types: [{ description: "Session", accept: { "application/json": [".json"] } }] });
+        const w = await handle.createWritable(); await w.write(text); await w.close();
+        return setStatus("Exported " + handle.name + " · open it in the Editor, or save it there into the repo");
+      } catch (e) {
+        if (e.name === "AbortError") return setStatus("Export cancelled");
+      }
+    }
+    J.download(name, text);
+    setStatus("Exported " + name + " to Downloads · open it in the Editor, or save it there into the repo");
+  }
+  $("exportBtn").onclick = exportSession;
   $("resetBtn").onclick = () => {
     if (s.moments.length && !confirm("Clear this session? Export it first if you want to keep it.")) return;
     stopPass();
@@ -434,13 +616,13 @@
       if (!test.open) { score.zoom(Math.exp(-e.deltaY * 0.01), pass() ? score.toX(now()) : undefined); dirty = true; }
       return;
     }
-    const d = (e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY) * (s._marker.invert ? -1 : 1);
+    const d = (e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY) * (settings.invert ? -1 : 1);
     if (test.open) {
       test.swipes++; test.swipeSum += d; test.lastWheel = performance.now();
       if (test.down) test.both1++;
       renderTest(); return;
     }
-    nudgeEnergy(d / SWIPE_PER_UNIT);
+    nudgeEnergy(d * settings.sensitivity / SWIPE_PER_UNIT);
   }, { passive: false });
 
   stage.addEventListener("mousedown", () => {
@@ -456,27 +638,44 @@
   const typing = (e) => e.target instanceof Element && e.target.matches("input, select, textarea");
   document.addEventListener("keydown", (e) => {
     if (typing(e) || e.metaKey || e.ctrlKey) return;
-    if (e.code === "Space") {
+    if (capturing) {
       e.preventDefault();
-      if (e.repeat) return;
-      if (test.open) {
-        test.down = true; test.downAt = performance.now(); test.presses++;
-        if (performance.now() - test.lastWheel < 200) { test.both2++; flash("tBothState", "BOTH"); }
-        renderTest();
-      } else beginHold();
+      if (e.code === "Escape") { capturing = null; renderKeys(); return; }
+      if (!MODIFIERS.includes(e.code)) finishCapture(e.code);
+      return;
     }
-    else if (e.code === "Enter" && !s._marker.running) { e.preventDefault(); startPass(); }
-    else if (e.code === "KeyS") stopPass();
-    else if (e.code === "KeyT") toggleTest();
-    else if (e.code === "KeyI") { s._marker.invert = !s._marker.invert; save(); setStatus("Swipe direction " + (s._marker.invert ? "inverted" : "normal")); }
-    else if (e.key === "=" || e.key === "+") { score.zoom(2, pass() ? score.toX(now()) : undefined); dirty = true; }
-    else if (e.key === "-") { score.zoom(0.5, pass() ? score.toX(now()) : undefined); dirty = true; }
-    else if (e.key === "0") { score.fit(); dirty = true; }
-    else if (e.code === "ArrowUp") { e.preventDefault(); nudgeEnergy(0.05); }
-    else if (e.code === "ArrowDown") { e.preventDefault(); nudgeEnergy(-0.05); }
+    if (e.code === "Escape") { if (panelTab) closePanel(); return; }
+    const action = actionFor(e.code);
+    if (!action) return;
+    e.preventDefault();
+    const zoomAt = () => pass() ? score.toX(now()) : undefined;
+    switch (action) {
+      case "mark":
+        if (e.repeat) return;
+        if (test.open) {
+          test.down = true; test.downAt = performance.now(); test.presses++;
+          if (performance.now() - test.lastWheel < 200) { test.both2++; flash("tBothState", "BOTH"); }
+          renderTest();
+        } else beginHold();
+        break;
+      case "start": if (!s._marker.running) startPass(); break;
+      case "stop": stopPass(); break;
+      case "energyUp": nudgeEnergy(0.05); break;
+      case "energyDown": nudgeEnergy(-0.05); break;
+      case "export": exportSession(); break;
+      case "file": if (!s._marker.running) $("fileInput").click(); break;
+      case "private": s.private = !s.private; save(); renderBars(); setStatus(s.private ? "Private · will be saved to private/" : "Public"); break;
+      case "zoomIn": score.zoom(2, zoomAt()); dirty = true; break;
+      case "zoomOut": score.zoom(0.5, zoomAt()); dirty = true; break;
+      case "zoomFit": score.fit(); dirty = true; break;
+      case "keys": openPanel("keys"); break;
+      case "settings": openPanel("settings"); break;
+      case "test": openPanel("test"); break;
+      case "invert": settings.invert = !settings.invert; saveSettings(); setStatus("Swipe direction " + (settings.invert ? "inverted" : "natural")); break;
+    }
   });
   document.addEventListener("keyup", (e) => {
-    if (e.code !== "Space" || typing(e)) return;
+    if (typing(e) || capturing || e.code !== settings.keys.mark) return;
     e.preventDefault();
     if (test.open) { if (test.down) { test.down = false; test.lastHold = (performance.now() - test.downAt) / 1000; renderTest(); } }
     else endHold();
@@ -484,6 +683,8 @@
   audio.el.addEventListener("ended", stopPass);
 
   new ResizeObserver(resize).observe($("score"));
+  applySettings();
+  renderKeys();
   renderBars();
   setStatus(s.waveform.peaks.length ? "Waveform kept from last time · choose a source to continue" : "File for local audio · Input or System for Spotify");
 

@@ -4,7 +4,7 @@ A public journal of what I see when I hear music: color, motion, texture and ene
 
 Paper sketches come first. This repo adds **time**. While a song plays, I mark *when* something shifts and how much energy I feel. Later I fill in what I saw and attach photos of my sketches, so each listen can be replayed as a timeline.
 
-> Work in progress. Next up: a page for each session and a public gallery.
+> Work in progress.
 
 ---
 
@@ -12,8 +12,11 @@ Paper sketches come first. This repo adds **time**. While a song plays, I mark *
 
 | Page | What it's for |
 |---|---|
+| **Gallery** · `index.html` | The front page: every saved session as a card with a small score. |
+| **Session** · `session.html` | One listen, for looking back: the full score, sketches along the timeline, every mark's details, reflection. |
 | **Marker** · `mark.html` | Use while listening. Full-screen and black. The space bar marks moments, a trackpad swipe sets energy. |
 | **Editor** · `edit.html` | Use afterwards. Fill in each mark (tags, colors, motion, texture, notes), attach sketch photos, save the session. |
+| **Visualizer** · `visualizer.html` | Concept draft: an image fills the screen under a slim full-width waveform. **Session** loads a saved listen (its waveform and sketches, no audio needed); **Audio** plays a local file instead. Will grow into visuals forming as the song plays. |
 | **Design system** · `docs/design-system.html` | The visual rules every page follows. |
 | **Concept** · [`docs/concept.md`](docs/concept.md) | The thinking behind it: vocabulary, data format, decisions. |
 
@@ -41,8 +44,10 @@ Leave this Terminal window open while you use the journal. Press `Ctrl+C` to sto
 
 **3. Open the pages in Chrome**
 
+- Gallery: http://localhost:8765/
 - Marker: http://localhost:8765/mark.html
 - Editor: http://localhost:8765/edit.html
+- Visualizer (concept): http://localhost:8765/visualizer.html
 
 > Opening the `.html` files on GitHub only shows their code. They have to be opened through the local server.
 
@@ -76,9 +81,20 @@ The small bar next to the buttons is a level meter. If it moves, the page can he
 | **Enter** | Start a pass (or a new pass) |
 | **S** | Stop the pass |
 | **↑ ↓** | Nudge energy |
-| **I** | Flip the swipe direction |
+| **E** | Export the session, named after its title (in Chrome a save dialog lets you rename it and choose the folder) |
+| **F** | Choose an audio file as the source |
+| **P** | Private on / off |
+| **?** | Show all keys |
+| **,** | Settings |
 | **T** | Input test: shows what the browser receives from the keys and trackpad |
-| **Esc** | Show the cursor again (click the score to hide it) |
+| **I** | Flip the swipe direction |
+| **Esc** | Close the panel · show the cursor again (click the score to hide it) |
+
+Forgot a key? Press **?**, or click **? Keys** in the bottom-right corner.
+
+**Change any key:** in the Keys panel, click a key and press the new one (Esc cancels). If that key was already in use, the two actions swap keys. **Restore default keys** puts everything back. The table above shows the defaults; your own keys are saved in your browser and shown in the panel, the hint and the corner button.
+
+**Settings** (press **,**) are saved in your browser: swipe direction and sensitivity, how long space must be held before a tap becomes a range, starting energy, whether the cursor hides during a pass, and whether the header and footer fade.
 
 Everything saves in the browser as you go. A reload won't lose your marks.
 
@@ -102,6 +118,8 @@ sessions/<date-artist-track>/sketch-01.jpg …
 
 Private sessions are saved to `private/` instead, which git never uploads.
 
+Saving also updates `sessions/index.json`, the list the gallery reads. Private sessions get their own `private/index.json`, so they show in the gallery on your computer (marked **Private**) but never online.
+
 | Control | Does |
 |---|---|
 | **Click** a mark | Select it |
@@ -115,7 +133,12 @@ Private sessions are saved to `private/` instead, which git never uploads.
 
 Your edits also save in the browser as a draft until you save to the folder.
 
-## 3 · Publish
+## 3 · Look back and publish
+
+Open the **Gallery** and click a session to see its page:
+- **The score:** pinch or **+ − 0** to zoom; click a mark to jump to its details; **← →** step through marks.
+- **Sketches:** the strip under the score places each pinned sketch at its mark's time.
+- **Marks table, reflection, and all sketches** large, below.
 
 The repo is public, so anything you commit can be seen.
 
@@ -123,17 +146,22 @@ The repo is public, so anything you commit can be seen.
 git add sessions && git commit -m "Add session" && git push
 ```
 
+**Put it online with GitHub Pages** (one time): on GitHub open the repo's **Settings → Pages**, set **Source** to *Deploy from a branch*, choose **main** and **/ (root)**, then **Save**. After a minute the gallery is live at `https://mishkin101.github.io/audiovisual-codebook-ideas/`. Every push updates it, and the Marker and Editor work from that address too, with no server needed.
+
 ---
 
 ## Project layout
 
 ```
+index.html            Gallery: every saved session
+session.html          One session, for looking back
+visualizer.html       Concept draft: full-screen image under a full-width waveform
 mark.html             Marker: listen and mark
 edit.html             Editor: fill in, attach sketches, save
 assets/style.css      Design tokens (black, greys, type, spacing)
 assets/score.js       Draws the waveform / marks / energy score, shared by every page
 assets/journal.js     Shared helpers (time formatting, storage)
-sessions/             Saved public sessions, one folder each
+sessions/             Saved public sessions, one folder each, plus index.json for the gallery
 private/              Saved private sessions (ignored by git)
 docs/concept.md       Concept, data format and decisions
 docs/design-system.html  Visual rules
@@ -142,11 +170,13 @@ prompts/              Early notes and prompts
 
 ## Troubleshooting
 
+- **A page still looks or behaves like an older version.** Your browser kept old files. Press `⌘⇧R` to reload fresh.
 - **The page is blank or says "can't be reached".** The server isn't running. Repeat step 2 and keep that window open.
 - **The level meter doesn't move.** With **System**, make sure **Share tab audio** was on. With **Input**, check that the right input is selected and that you're not on headphones.
-- **Swiping moves energy the wrong way.** Press **I**.
+- **Swiping moves energy the wrong way, or too much or too little.** Press **I** to flip it, or **,** to change sensitivity.
 - **The Editor's Save downloads files instead.** You're not in Chrome, or you didn't choose the folder. Click **Folder** in Chrome, or move the downloaded files into `sessions/<date-artist-track>/` yourself.
 - **A photo won't add.** It's probably HEIC (iPhone). Export it as JPEG and try again.
+- **A saved session doesn't appear in the gallery.** The gallery reads `sessions/index.json`, which the Editor writes when it saves or when you connect the folder. Open the Editor in Chrome with the folder connected, and the list refreshes.
 
 ---
 

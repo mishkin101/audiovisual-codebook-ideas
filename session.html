@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Listening Session</title>
+  <link rel="stylesheet" href="assets/style.css?v=2">
+  <style>
+    body { height: auto; min-height: 100%; }
+    .bar { display: flex; align-items: center; gap: var(--u2); padding: 0 var(--u2); height: var(--bar); border-bottom: var(--hair) solid var(--rule); }
+    .bar .push { margin-left: auto; display: flex; gap: 0; align-items: center; }
+    .bar .push .btn + .btn { border-left: none; }
+    .back { border: none; font: var(--t-label); letter-spacing: var(--track-label); text-transform: uppercase; color: var(--mid); }
+
+    .head { padding: var(--u4) var(--u2) var(--u3); display: grid; grid-template-columns: 1fr auto; gap: var(--u2); align-items: end; border-bottom: var(--hair) solid var(--rule); }
+    .head h1 { font: var(--t-display); color: var(--live); margin: 0 0 var(--u); letter-spacing: -0.02em; text-transform: uppercase; overflow-wrap: anywhere; }
+    .head .artist { font: var(--t-title); color: var(--bright); text-transform: uppercase; letter-spacing: 0.08em; }
+    .facts { display: grid; grid-template-columns: repeat(3, auto); gap: var(--u) var(--u4); text-align: right; }
+    .facts .label { display: block; margin-bottom: 4px; }
+
+    #stage { position: relative; height: 52vh; min-height: 320px; border-bottom: var(--hair) solid var(--rule); }
+    #score { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: default; }
+    #strip { position: relative; height: 104px; border-bottom: var(--hair) solid var(--rule); overflow: hidden; }
+    #strip .label { position: absolute; left: var(--u2); top: var(--u); }
+    #strip a { position: absolute; top: 24px; border: none; }
+    #strip img { width: 72px; height: 72px; object-fit: cover; display: block; border: var(--hair) solid var(--rule); background: var(--slab); }
+    #strip a::before { content: ""; position: absolute; left: 0; top: -24px; height: 24px; border-left: var(--hair) solid var(--mid); }
+    #strip .empty { position: absolute; left: var(--u2); top: 48px; }
+
+    .mood { display: grid; grid-template-columns: 1fr auto 1fr; gap: var(--u3); padding: var(--u3) var(--u2); border-bottom: var(--hair) solid var(--rule); align-items: baseline; }
+    .mood .val { font: var(--t-title); color: var(--bright); }
+    .mood .arrow { color: var(--dim); }
+
+    section { padding: var(--u4) var(--u2); border-bottom: var(--hair) solid var(--rule); }
+    section > .label { display: block; margin-bottom: var(--u2); }
+    .moments { width: 100%; border-collapse: collapse; }
+    .moments th { text-align: left; font: var(--t-label); letter-spacing: var(--track-label); text-transform: uppercase; color: var(--dim); font-weight: 500; padding: 0 var(--u2) var(--u) 0; border-bottom: var(--hair) solid var(--rule); }
+    .moments td { padding: var(--u2) var(--u2) var(--u2) 0; border-bottom: var(--hair) solid var(--rule); vertical-align: top; }
+    .moments tr { cursor: pointer; }
+    .moments tbody tr:hover td { background: var(--slab); }
+    .moments tr.on td { background: var(--slab); }
+    .moments tr.on .num { background: var(--live); color: var(--void); }
+    .num { font: var(--t-data); padding: 2px 4px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 4px; }
+    .chip { font: var(--t-label); letter-spacing: var(--track-label); text-transform: uppercase; border: var(--hair) solid var(--mid); padding: 4px 6px; color: var(--bright); }
+    .sw { display: inline-block; width: 16px; height: 16px; border: var(--hair) solid var(--rule); margin-right: 2px; vertical-align: middle; }
+    .text { max-width: 48ch; }
+    .text p { margin: 0 0 4px; }
+    .tiny { width: 48px; height: 48px; object-fit: cover; border: var(--hair) solid var(--rule); display: block; }
+    .reflection { font: var(--t-body); max-width: 72ch; white-space: pre-wrap; color: var(--bright); margin: 0; }
+    .sketches { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 0; border-top: var(--hair) solid var(--rule); border-left: var(--hair) solid var(--rule); }
+    .sketches figure { margin: 0; border-right: var(--hair) solid var(--rule); border-bottom: var(--hair) solid var(--rule); padding: var(--u2); }
+    .sketches a { border: none; display: block; }
+    .sketches img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block; background: var(--slab); }
+    .sketches figcaption { margin-top: var(--u); display: flex; justify-content: space-between; gap: var(--u); }
+    #missing { padding: var(--u6) var(--u2); }
+
+    @media (max-width: 720px) {
+      .head { grid-template-columns: 1fr; }
+      .facts { text-align: left; grid-template-columns: repeat(3, 1fr); }
+      .head h1 { font-size: 32px; }
+      .mood { grid-template-columns: 1fr; }
+      .mood .arrow { display: none; }
+      .moments .hide-sm { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="bar">
+    <a class="back" href="index.html">← Gallery</a>
+    <span class="label" id="dateLabel"></span>
+    <div class="push" id="passes"></div>
+  </nav>
+
+  <div id="page" hidden>
+    <header class="head">
+      <div><h1 id="title"></h1><div class="artist" id="artist"></div></div>
+      <div class="facts" id="facts"></div>
+    </header>
+
+    <div id="stage"><canvas id="score"></canvas></div>
+    <div id="strip"><span class="label">Sketches</span></div>
+
+    <div class="mood" id="mood"></div>
+
+    <section>
+      <span class="label">Marks <span class="dimmed">· pinch or + − 0 to zoom the score · click a row to find it</span></span>
+      <table class="moments">
+        <thead><tr><th>#</th><th>Time</th><th class="hide-sm">Energy</th><th>Colors</th><th>Tags</th><th class="hide-sm">Motion · texture</th><th>Notes</th><th class="hide-sm">Sketch</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </section>
+
+    <section id="reflectionSection"><span class="label">Reflection</span><p class="reflection" id="reflection"></p></section>
+    <section id="sketchSection"><span class="label">Sketches</span><div class="sketches" id="sketches"></div></section>
+  </div>
+  <p class="label" id="missing" hidden></p>
+
+<script src="assets/journal.js?v=2"></script>
+<script src="assets/score.js?v=2"></script>
+<script>
+(function () {
+  const J = window.Journal, E = J.escape, $ = (id) => document.getElementById(id);
+  const path = new URLSearchParams(location.search).get("s") || "";
+  let s = null, base = "", viewPass = 1, selected = null, score = null;
+
+  function fail(text) { $("missing").hidden = false; $("missing").textContent = text; }
+
+  if (!/^(sessions|private)\/[a-z0-9][a-z0-9-]*$/.test(path)) return fail("No session chosen · go back to the gallery");
+  base = path + "/";
+
+  fetch(base + "session.json", { cache: "no-cache" })
+    .then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then((data) => { s = data; render(); })
+    .catch(() => fail("Couldn't find " + path + " · it may not be published yet"));
+
+  const pad2 = (n) => String(n).padStart(2, "0");
+  const imgSrc = (file) => base + encodeURIComponent(file);
+  const passMoments = () => s.moments.filter((m) => m.pass === viewPass).sort((a, b) => a.t_s - b.t_s);
+
+  function render() {
+    s.moments = (s.moments || []).map((m) => J.newMoment(m));
+    s.passes = s.passes || []; s.sketches = s.sketches || []; s.context = s.context || {};
+    // open on the pass with the most marks (the latest one when tied)
+    viewPass = s.passes.length ? s.passes.reduce((best, p) => {
+      const c = (n) => s.moments.filter((m) => m.pass === n).length;
+      return c(p.n) >= c(best.n) ? p : best;
+    }).n : 1;
+    const t = s.track || {};
+    document.title = (t.title || "Session") + " · Listening Journal";
+    $("page").hidden = false;
+    $("dateLabel").textContent = (s.date || "") + (s.private ? " · private" : "");
+    $("title").textContent = t.title || "Untitled";
+    $("artist").textContent = t.artist || "";
+    const fact = (k, v) => '<div><span class="label">' + k + '</span><span class="data">' + E(v) + "</span></div>";
+    $("facts").innerHTML = fact("Length", J.formatTime(J.duration(s)).slice(0, 5)) + fact("Passes", s.passes.length) + fact("Marks", s.moments.length) +
+      fact("Source", t.source || "—") + fact("Time of day", s.context.time_of_day || "—") + fact("Place", s.context.place || "—");
+    const c = s.context;
+    $("mood").innerHTML = '<div><span class="label">Mood before</span><div class="val">' + E(c.mood_before || "—") + '</div></div><span class="arrow label">→</span>' +
+      '<div><span class="label">Mood after</span><div class="val">' + E(c.mood_after || "—") + "</div></div>";
+    $("reflection").textContent = s.reflection || "";
+    $("reflectionSection").hidden = !s.reflection;
+    renderSketches();
+    renderPasses();
+
+    score = Score.create($("score"));
+    new ResizeObserver(() => { score.resize(); draw(); }).observe($("score"));
+    renderRows();
+    draw();
+  }
+
+  function renderPasses() {
+    const box = $("passes"); box.innerHTML = "";
+    if (s.passes.length < 2) return;
+    s.passes.forEach((p) => {
+      const b = document.createElement("button");
+      b.className = "btn" + (p.n === viewPass ? " on" : "");
+      b.textContent = "Pass " + pad2(p.n);
+      b.onclick = () => { viewPass = p.n; selected = null; renderPasses(); renderRows(); draw(); };
+      box.appendChild(b);
+    });
+  }
+
+  function draw() {
+    score.draw({ session: s, current: viewPass, selected, colors: true });
+    placeStrip();
+  }
+
+  // Sketch thumbnails sit under the score at the time of the mark they're pinned to.
+  function placeStrip() {
+    const strip = $("strip");
+    strip.querySelectorAll("a, .empty").forEach((el) => el.remove());
+    let placed = 0;
+    passMoments().forEach((m) => {
+      if (!m.sketch) return;
+      const x = score.toX(m.t_s);
+      if (x < -72 || x > strip.clientWidth) return;
+      const a = document.createElement("a");
+      a.href = imgSrc(m.sketch); a.target = "_blank"; a.rel = "noopener";
+      a.style.left = Math.round(x) + "px";
+      a.title = "Mark " + pad2(m.n) + " · " + m.sketch;
+      a.innerHTML = '<img loading="lazy" alt="Sketch for mark ' + pad2(m.n) + '" src="' + E(imgSrc(m.sketch)) + '">';
+      strip.appendChild(a); placed++;
+    });
+    if (!placed) { const p = document.createElement("span"); p.className = "label dimmed empty"; p.textContent = "No sketches pinned to marks in view"; strip.appendChild(p); }
+  }
+
+  function renderRows() {
+    const rows = $("rows");
+    rows.innerHTML = passMoments().map((m) => {
+      const time = J.formatTime(m.t_s) + (m.kind === "range" && m.t_end_s != null ? " → " + J.formatTime(m.t_end_s) : "");
+      const notes = [m.other && '<p>' + E(m.other) + "</p>", m.note && '<p class="dimmed">' + E(m.note) + "</p>"].filter(Boolean).join("");
+      const mt = [m.motion, m.texture].filter(Boolean).map(E).join(" · ");
+      return '<tr data-n="' + m.n + '"' + (m.n === selected ? ' class="on"' : "") + ">" +
+        '<td><span class="num">' + pad2(m.n) + "</span></td>" +
+        '<td class="data">' + time + "</td>" +
+        '<td class="data hide-sm">' + (m.energy == null ? "—" : m.energy.toFixed(2)) + "</td>" +
+        "<td>" + (m.colors.map((c) => '<span class="sw" title="' + E(c) + '" style="background:' + E(c) + '"></span>').join("") || '<span class="dimmed">—</span>') + "</td>" +
+        '<td><div class="chips">' + (m.tags.map((t) => '<span class="chip">' + E(t) + "</span>").join("") || '<span class="dimmed">—</span>') + "</div></td>" +
+        '<td class="hide-sm">' + (mt || '<span class="dimmed">—</span>') + "</td>" +
+        '<td class="text">' + (notes || '<span class="dimmed">—</span>') + "</td>" +
+        '<td class="hide-sm">' + (m.sketch ? '<img class="tiny" loading="lazy" alt="" src="' + E(imgSrc(m.sketch)) + '">' : "") + "</td></tr>";
+    }).join("") || '<tr><td colspan="8" class="dimmed label">No marks in this pass</td></tr>';
+    rows.querySelectorAll("tr[data-n]").forEach((tr) => tr.onclick = () => select(+tr.dataset.n, false));
+  }
+
+  function select(n, scrollRow) {
+    selected = n;
+    const m = s.moments.find((x) => x.n === n);
+    if (m) score.reveal(m.t_s);
+    draw();
+    $("rows").querySelectorAll("tr").forEach((tr) => tr.classList.toggle("on", +tr.dataset.n === n));
+    const row = $("rows").querySelector('tr[data-n="' + n + '"]');
+    if (scrollRow && row) row.scrollIntoView({ block: "nearest" });
+    else $("stage").scrollIntoView({ block: "nearest" });
+  }
+
+  function renderSketches() {
+    const pinned = (file) => s.moments.filter((m) => m.sketch === file).map((m) => pad2(m.n)).join(", ");
+    $("sketches").innerHTML = s.sketches.map((sk) =>
+      '<figure><a href="' + E(imgSrc(sk.file)) + '" target="_blank" rel="noopener"><img loading="lazy" alt="' + E(sk.caption || sk.file) + '" src="' + E(imgSrc(sk.file)) + '"></a>' +
+      '<figcaption><span>' + E(sk.caption || "") + '</span><span class="label">' + (pinned(sk.file) ? "Mark " + pinned(sk.file) : "") + "</span></figcaption></figure>").join("");
+    $("sketchSection").hidden = !s.sketches.length;
+  }
+
+  // Score: click a mark to find its row; pinch / swipe / keys to zoom and move.
+  const canvas = $("score");
+  const pointer = (e) => { const r = canvas.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+  canvas.addEventListener("click", (e) => {
+    const [x, y] = pointer(e), h = score.hit(x, y);
+    if (!h.mark) return;
+    const m = s.moments.find((x) => x.n === h.mark.n);
+    if (m.pass !== viewPass) { viewPass = m.pass; renderPasses(); renderRows(); }
+    select(m.n, true);
+  });
+  canvas.addEventListener("mousemove", (e) => { const [x, y] = pointer(e); canvas.style.cursor = score && score.hit(x, y).mark ? "pointer" : "default"; });
+  canvas.addEventListener("wheel", (e) => {
+    const zoomed = score.layout.span < score.layout.dur - 0.01;
+    if (!e.ctrlKey && !zoomed) return;          // let the page scroll when the score isn't zoomed
+    e.preventDefault();
+    if (e.ctrlKey) score.zoom(Math.exp(-e.deltaY * 0.01), pointer(e)[0]);
+    else score.pan(Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY);
+    draw();
+  }, { passive: false });
+  let gs = 1;
+  canvas.addEventListener("gesturestart", (e) => { e.preventDefault(); gs = 1; });
+  canvas.addEventListener("gesturechange", (e) => { e.preventDefault(); score.zoom(e.scale / gs, pointer(e)[0]); gs = e.scale; draw(); });
+  document.addEventListener("keydown", (e) => {
+    if (!score || e.metaKey || e.ctrlKey || e.altKey) return;
+    const m = s.moments.find((x) => x.n === selected), x = m ? score.toX(m.t_s) : undefined;
+    if (e.key === "=" || e.key === "+") { score.zoom(2, x); draw(); }
+    else if (e.key === "-") { score.zoom(0.5, x); draw(); }
+    else if (e.key === "0") { score.fit(); draw(); }
+    else if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+      const list = passMoments(); if (!list.length) return;
+      e.preventDefault();
+      const i = list.findIndex((q) => q.n === selected), d = e.key === "ArrowRight" ? 1 : -1;
+      select(list[i < 0 ? 0 : Math.min(list.length - 1, Math.max(0, i + d))].n, true);
+    }
+  });
+})();
+</script>
+</body>
+</html>

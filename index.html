@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Listening Journal</title>
+  <meta name="description" content="A public journal of what I see when I hear music: color, motion, texture and energy over the length of a track.">
+  <link rel="stylesheet" href="assets/style.css?v=2">
+  <style>
+    body { height: auto; min-height: 100%; }
+    .bar { display: flex; align-items: center; gap: var(--u3); padding: 0 var(--u2); height: var(--bar); border-bottom: var(--hair) solid var(--rule); }
+    .bar a { border: none; }
+    .bar .push { margin-left: auto; display: flex; gap: var(--u3); }
+    .bar .push a { font: var(--t-label); letter-spacing: var(--track-label); text-transform: uppercase; color: var(--mid); }
+    .bar .push a:hover { color: var(--live); }
+
+    .intro { display: grid; grid-template-columns: 1fr minmax(0, 52ch); gap: var(--u4); padding: var(--u6) var(--u2) var(--u4); border-bottom: var(--hair) solid var(--rule); align-items: end; }
+    .intro h1 { font: var(--t-display); font-size: clamp(36px, 7vw, 88px); line-height: 0.92; color: var(--live); margin: 0; letter-spacing: -0.03em; }
+    .intro p { margin: 0 0 var(--u); color: var(--mid); }
+    .count { display: flex; gap: var(--u4); margin-top: var(--u2); }
+    .count .label { display: block; margin-bottom: 4px; }
+
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); border-left: var(--hair) solid var(--rule); }
+    .card { display: block; border: none; border-right: var(--hair) solid var(--rule); border-bottom: var(--hair) solid var(--rule); padding: var(--u2); color: var(--bright); }
+    .card:hover { background: var(--slab); color: var(--bright); }
+    .card:hover .title { color: var(--live); }
+    .card canvas { width: 100%; height: 112px; display: block; border: var(--hair) solid var(--rule); }
+    .card .row1 { display: flex; justify-content: space-between; gap: var(--u); margin-top: var(--u2); }
+    .card .title { font: var(--t-title); text-transform: uppercase; letter-spacing: 0.04em; color: var(--bright); margin: var(--u) 0 2px; overflow-wrap: anywhere; }
+    .card .artist { color: var(--mid); text-transform: uppercase; letter-spacing: 0.08em; font: var(--t-data); }
+    .card .foot { display: flex; justify-content: space-between; align-items: center; gap: var(--u); margin-top: var(--u2); min-height: 16px; }
+    .card .tags { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .card .sws { display: flex; gap: 2px; flex: none; }
+    .card .sws i { width: 10px; height: 10px; display: block; border: var(--hair) solid var(--rule); }
+    .private { border: var(--hair) solid var(--mid); padding: 2px 4px; }
+
+    .empty { padding: var(--u6) var(--u2); border-bottom: var(--hair) solid var(--rule); }
+    .empty ol { margin: var(--u2) 0 0; padding-left: 20px; color: var(--mid); line-height: 2; }
+    footer { padding: var(--u3) var(--u2); }
+
+    @media (max-width: 720px) { .intro { grid-template-columns: 1fr; } .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <nav class="bar">
+    <span class="label" style="color: var(--live)">Listening journal</span>
+    <div class="push">
+      <a href="mark.html">Marker</a>
+      <a href="edit.html">Editor</a>
+      <a href="visualizer.html">Visualizer</a>
+      <a href="docs/design-system.html">Design system</a>
+    </div>
+  </nav>
+
+  <header class="intro">
+    <h1>TECHNO-THETIK</h1>
+    <div>
+      <p>A journal of the visuals music brings up for me: color, motion, texture and energy, and how they change over the length of a track. Each session is one song on one day. I mark moments while listening, then fill in what I saw and pin my paper sketches to the timeline.</p>
+      <div class="count" id="count"></div>
+    </div>
+  </header>
+
+  <main class="grid" id="grid"></main>
+  <div class="empty" id="empty" hidden>
+    <span class="label" style="color: var(--live)">No sessions yet</span>
+    <ol>
+      <li>Listen with the <a href="mark.html">Marker</a></li>
+      <li>Fill it in and save with the <a href="edit.html">Editor</a></li>
+      <li>Commit and push the new folder in <span class="data">sessions/</span></li>
+      <li>See it take shape in the <a href="visualizer.html">Visualizer</a> <span class="dimmed">(concept)</span></li>
+    </ol>
+  </div>
+
+  <footer class="label dimmed">Monochrome by design · the only color here is mine</footer>
+
+<script src="assets/journal.js?v=2"></script>
+<script src="assets/score.js?v=2"></script>
+<script>
+(function () {
+  const J = window.Journal, E = J.escape, $ = (id) => document.getElementById(id);
+
+  // Public sessions are always listed. Private ones only exist on my own computer,
+  // so on the published site that request simply fails and is skipped.
+  const load = (url) => fetch(url, { cache: "no-cache" }).then((r) => r.ok ? r.json() : { sessions: [] }).catch(() => ({ sessions: [] }));
+
+  Promise.all([load("sessions/index.json"), load("private/index.json")]).then(([pub, priv]) => {
+    const list = [...(pub.sessions || []), ...(priv.sessions || []).map((x) => Object.assign({}, x, { private: true }))]
+      .sort((a, b) => (b.date || "").localeCompare(a.date || "") || (a.title || "").localeCompare(b.title || ""));
+    const marks = list.reduce((a, x) => a + (x.marks || 0), 0);
+    const songs = new Set(list.map((x) => (x.title + "|" + x.artist).toLowerCase())).size;
+    const stat = (k, v) => '<div><span class="label">' + k + '</span><span class="data">' + v + "</span></div>";
+    $("count").innerHTML = stat("Sessions", list.length) + stat("Songs", songs) + stat("Marks", marks);
+
+    if (!list.length) { $("empty").hidden = false; $("grid").hidden = true; return; }
+    const grid = $("grid");
+    grid.innerHTML = list.map((x, i) =>
+      '<a class="card" href="session.html?s=' + encodeURIComponent(x.path) + '">' +
+        '<canvas data-i="' + i + '" aria-label="Score of ' + E(x.title) + '"></canvas>' +
+        '<div class="row1"><span class="label">' + E(x.date || "") + '</span><span class="label">' +
+          (x.private ? '<span class="private">Private</span> ' : "") + x.passes + " pass" + (x.passes === 1 ? "" : "es") + " · " + x.marks + " marks</span></div>" +
+        '<div class="title">' + E(x.title || "Untitled") + "</div>" +
+        '<div class="artist">' + E(x.artist || "") + "</div>" +
+        '<div class="foot"><span class="label tags">' + E((x.tags || []).join(" · ")) + "</span>" +
+          '<span class="sws">' + (x.colors || []).map((c) => '<i style="background:' + E(c) + '"></i>').join("") + "</span></div>" +
+      "</a>").join("");
+    const drawAll = () => grid.querySelectorAll("canvas").forEach((c) => Score.mini(c, list[+c.dataset.i]));
+    drawAll();
+    new ResizeObserver(drawAll).observe(grid);
+  });
+})();
+</script>
+</body>
+</html>

@@ -31,7 +31,7 @@ I see music: color, motion, texture, shifts in energy. I sketch these on paper w
 3. **Sketch on paper** as usual, writing mark numbers (01, 02…) next to the drawings.
 4. **Digitize later** in the editor (`edit.html`). **From marker** loads the latest listen onto the same black score. Click a mark to fill in tags, colors, motion, texture, *other* and a note (chips suggest what I've used before). Add sketch photos and pin each to a mark. Pinch to zoom into the timeline and swipe to move along it (+ / − / 0 also work). Fix timing by dragging edges or typing times; double-click to add a mark; ⌫ deletes; Z undoes. Optionally load the audio to listen while editing.
 5. **Save.** In Chrome, choose the repo folder once; **Save** (⌘S) writes `sessions/<date-artist-track>/` with `session.json` and the sketch photos (shrunk to 1600px JPEGs), or `private/…` for private sessions. Other browsers download the files instead.
-6. **Commit and push.** GitHub Pages will update the public gallery (coming).
+6. **Commit and push.** GitHub Pages updates the public gallery.
 
 > Spotify's desktop app doesn't share its audio with webpages. The Marker listens instead: **System** captures computer audio where the browser allows it, and **Input** listens to an audio input. A free loopback driver (e.g. BlackHole) can route Spotify into **Input** without a microphone.
 > **T** opens an input test that shows what the browser receives, including swiping while space is held.
@@ -89,7 +89,7 @@ docs/concept.md       this file
 1. ✅ This concept doc
 2. ✅ Design system (`docs/design-system.html`) and Marker (`mark.html`): full-screen score with waveform, marks lane and continuous energy; space marks, trackpad swipe sets energy
 3. ✅ Session editor (`edit.html`): fill in moments, suggestion chips, sketch photos, retiming, undo, save into the repo folder
-4. Track strip + gallery + index script + GitHub Pages
+4. ✅ Session page (`session.html`) and gallery (`index.html`); the Editor writes `sessions/index.json`; GitHub Pages ready (enable in repo settings)
 5. First real session from a recent sketch
 6. Later: codebook view, same-song comparison, audio features
 

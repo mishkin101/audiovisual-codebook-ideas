@@ -11,14 +11,7 @@
     return C;
   }
 
-  // Seconds the score spans: the track length when known, else whatever has been marked, at least 4 minutes.
-  function duration(session, t) {
-    let maxT = t || 0;
-    session.passes.forEach((p) => { if (p.ended_s) maxT = Math.max(maxT, p.ended_s); });
-    session.moments.forEach((m) => { maxT = Math.max(maxT, m.t_end_s || m.t_s); });
-    if (session.track.duration_s) return Math.max(session.track.duration_s, maxT);
-    return Math.max(240, maxT * 1.05);
-  }
+  const duration = (session, t, running) => window.Journal.duration(session, t, running);
 
   function create(canvas) {
     const g = canvas.getContext("2d"), C = tokens();
@@ -54,7 +47,7 @@
     // st: { session, t, current (pass n), running, hold: {t} | null, selected (moment n), energyNow, playhead, colors, follow }
     function draw(st) {
       const s = st.session, t = st.t || 0, current = st.current || 0;
-      const dur = L.dur = duration(s, t);
+      const dur = L.dur = duration(s, t, st.running);
       const span = L.span = view.span ? Math.min(view.span, dur) : dur;
       if (st.follow && view.span && (t < view.start || t > view.start + span * 0.85)) view.start = t - span * 0.15;
       const start = L.start = view.start = Math.max(0, Math.min(view.start, dur - span));
@@ -197,5 +190,39 @@
     return { resize, draw, hit, zoom, pan, fit, reveal, layout: L, toX: (sec) => ((sec - L.start) / L.span) * W, toT };
   }
 
-  window.Score = { create, duration };
+  // A compact score for gallery cards, drawn from an index.json summary:
+  // waveform silhouette on top, marks in the middle, energy line along the bottom.
+  function mini(canvas, entry) {
+    const C = tokens(), dpr = window.devicePixelRatio || 1;
+    const W = canvas.clientWidth, H = canvas.clientHeight, g = canvas.getContext("2d");
+    canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const m = entry.mini || {}, dur = entry.duration_s || 240, X = (t) => (t / dur) * W;
+    const waveH = Math.round(H * 0.5), marksY = waveH, marksH = Math.round(H * 0.22), eTop = marksY + marksH + 4;
+    g.fillStyle = C.void; g.fillRect(0, 0, W, H);
+    g.fillStyle = C.slab; g.fillRect(0, 0, W, waveH);
+    const wave = m.wave || [];
+    if (wave.length) {
+      g.fillStyle = C.mid;
+      const bw = W / wave.length, mid = waveH / 2;
+      wave.forEach((v, i) => { const h = Math.max(0.5, v * (mid - 4)); g.fillRect(i * bw, mid - h, Math.max(1, bw - 1), h * 2); });
+    }
+    g.fillStyle = C.rule; g.fillRect(0, marksY, W, 1); g.fillRect(0, marksY + marksH, W, 1);
+    // earlier passes first (dim, half height), the latest pass on top
+    (m.marks || []).slice().sort((a, b) => (a[3] === false) - (b[3] === false)).reverse().forEach(([t, te, colors, latest]) => {
+      const x0 = Math.round(X(t)), own = latest !== false, y0 = own ? marksY + 1 : marksY + Math.round(marksH / 2), h = marksY + marksH - y0;
+      if (te != null && own) { g.fillStyle = C.dim; g.fillRect(x0, y0, Math.max(1, Math.round(X(te)) - x0), h); }
+      g.fillStyle = own ? C.live : C.dim; g.fillRect(x0, y0, 1, h);
+      if (!own) return;
+      (colors || []).slice(0, 3).forEach((c, i) => { g.fillStyle = c; g.fillRect(x0 + 2 + i * 5, marksY + marksH - 5, 4, 4); });
+    });
+    const e = m.energy || [];
+    if (e.length) {
+      const eY = (v) => H - 2 - v * (H - 2 - eTop);
+      g.strokeStyle = C.bright; g.lineWidth = 1; g.beginPath();
+      e.forEach(([t, v], i) => i ? g.lineTo(X(t), eY(v)) : g.moveTo(X(t), eY(v))); g.stroke();
+    }
+  }
+
+  window.Score = { create, duration, mini };
 })();

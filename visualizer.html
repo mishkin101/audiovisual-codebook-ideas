@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Visualizer Concept</title>
+  <link rel="stylesheet" href="assets/style.css?v=2">
+  <style>
+    /* Draft: the image is the work and fills the screen; the sound is a thin full-width line above it. */
+    body { display: grid; grid-template-rows: var(--bar) 32px 1fr; overflow: hidden; user-select: none; -webkit-user-select: none; }
+    .bar { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: var(--u3); padding: 0 var(--u2); min-width: 0; }
+    .bar a { border: none; }
+    .left, .right { display: flex; gap: var(--u3); align-items: center; min-width: 0; white-space: nowrap; overflow: hidden; }
+    .right { justify-content: flex-end; }
+    .home { font: var(--t-label); letter-spacing: var(--track-label); text-transform: uppercase; color: var(--mid); }
+    .home:hover { color: var(--live); }
+    .quiet { font: var(--t-label); letter-spacing: var(--track-label); text-transform: uppercase; color: var(--dim); background: none; border: none; padding: 0; cursor: pointer; }
+    .quiet:hover, .quiet.on { color: var(--live); }
+    body.playing .bar { opacity: 0.25; }
+    body.playing .bar:hover { opacity: 1; }
+
+    /* the slim waveform, edge to edge under the top bar */
+    #wave { display: block; width: 100%; height: 32px; cursor: pointer; }
+    body.playing #wave { opacity: 0.6; }
+
+    /* the image: nearly the whole screen */
+    #stage { position: relative; min-height: 0; }
+    #frame { position: absolute; inset: var(--u); display: flex; align-items: center; justify-content: center; pointer-events: none; }
+    #frame img { max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; display: block; }
+    body.fill #frame { inset: 0; }
+    body.fill #frame img { width: 100%; height: 100%; max-width: none; max-height: none; object-fit: cover; }
+    #empty {
+      position: absolute; inset: var(--u); border: var(--hair) dashed var(--rule);
+      display: grid; place-items: center; text-align: center; cursor: pointer; line-height: 2.2;
+    }
+    #empty[hidden] { display: none; }
+    #empty:hover { border-color: var(--dim); }
+    #stage.drop #empty, #stage.drop #frame { outline: var(--hair) solid var(--live); outline-offset: -1px; }
+    /* session menu */
+    #menu { position: absolute; top: var(--bar); right: var(--u2); z-index: 5; width: min(420px, calc(100vw - 32px)); max-height: 60vh; overflow: auto;
+      background: var(--void); border: var(--hair) solid var(--rule); display: none; }
+    #menu.open { display: block; }
+    #menu button { display: grid; grid-template-columns: 92px 1fr auto; gap: var(--u2); width: 100%; text-align: left; align-items: baseline;
+      background: var(--void); color: var(--bright); border: none; border-bottom: var(--hair) solid var(--rule); padding: var(--u2); cursor: pointer; font: var(--t-data); }
+    #menu button:hover { background: var(--live); color: var(--void); }
+    #menu button:hover .label { color: var(--void); }
+    #menu .note { padding: var(--u2); display: block; }
+    #count { position: absolute; right: var(--u2); bottom: var(--u2); mix-blend-mode: difference; color: var(--bright); }
+  </style>
+</head>
+<body>
+  <nav class="bar">
+    <div class="left">
+      <a class="home" href="index.html">← Gallery</a>
+      <span class="label" id="trackName" title="Visualizer · concept">Visualizer · concept</span>
+    </div>
+    <div class="right">
+      <span class="data" id="clock">00:00 / 00:00</span>
+      <button class="quiet" id="sessionBtn" title="Use a saved session's waveform and sketches (no audio needed)">Session</button>
+      <button class="quiet" id="audioBtn" title="Or play a local audio file">Audio</button>
+      <button class="quiet" id="imageBtn">Images</button>
+      <button class="quiet" id="fillBtn" title="Fit the whole image, or fill the screen (F)">Fill</button>
+      <button class="quiet" id="clearBtn">Clear</button>
+      <span class="label dimmed" title="Space play · ← → images · F fit / fill · click the waveform to jump">?</span>
+    </div>
+  </nav>
+
+  <div id="menu"></div>
+  <canvas id="wave" aria-label="Waveform"></canvas>
+
+  <main id="stage">
+    <div id="frame"></div>
+    <div id="empty" class="label">Drop an image here<br>or click to choose<br><span class="dimmed">Session for a saved listen · space play · ← → images · F fit / fill</span></div>
+    <span class="label" id="count"></span>
+  </main>
+
+  <input type="file" id="audioInput" accept="audio/*" hidden>
+  <input type="file" id="sessionInput" accept="application/json,.json" hidden>
+  <input type="file" id="imageInput" accept="image/*" multiple hidden>
+
+<script src="assets/journal.js?v=2"></script>
+<script>
+(function () {
+  const J = window.Journal, $ = (id) => document.getElementById(id);
+  const css = getComputedStyle(document.documentElement), C = {};
+  ["void", "rule", "dim", "mid", "bright", "live"].forEach((k) => C[k] = css.getPropertyValue("--" + k).trim());
+
+  const audio = new Audio();
+  let peaks = [];            // loudest level per bucket, 0-1
+  let images = [];           // { blob, url }
+  let current = 0;
+
+  // The player follows either a local audio file, or a saved session's timeline.
+  // Sessions carry the waveform shape the Marker captured, but never the audio itself,
+  // so streamed music (Spotify etc.) can be replayed as a silent timeline.
+  const player = {
+    mode: "none", dur: 0, offset: 0, startedAt: 0, playing: false,
+    time() {
+      if (this.mode === "audio") return audio.currentTime || 0;
+      return this.playing ? Math.min(this.dur, this.offset + (performance.now() - this.startedAt) / 1000) : this.offset;
+    },
+    duration() { return this.mode === "audio" ? audio.duration || 0 : this.dur; },
+    isPlaying() { return this.mode === "audio" ? !audio.paused : this.playing; },
+    play() {
+      if (this.mode === "audio") return audio.play();
+      if (this.mode !== "session") return;
+      if (this.offset >= this.dur) this.offset = 0;
+      this.startedAt = performance.now(); this.playing = true; playingChanged();
+    },
+    pause() {
+      if (this.mode === "audio") return audio.pause();
+      this.offset = this.time(); this.playing = false; playingChanged();
+    },
+    seek(t) {
+      if (this.mode === "audio") { audio.currentTime = t; return; }
+      this.offset = Math.max(0, Math.min(this.dur, t)); this.startedAt = performance.now();
+    }
+  };
+  function playingChanged() { document.body.classList.toggle("playing", player.isPlaying()); }
+
+  // ---------- waveform ----------
+  const canvas = $("wave"), g = canvas.getContext("2d");
+  function sizeCanvas() {
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(canvas.clientWidth * dpr); canvas.height = Math.round(canvas.clientHeight * dpr);
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  function drawWave() {
+    const W = canvas.clientWidth, H = canvas.clientHeight, mid = H / 2, dur = player.duration();
+    g.fillStyle = C.void; g.fillRect(0, 0, W, H);
+    if (!peaks.length) { g.fillStyle = C.rule; g.fillRect(0, Math.round(mid), W, 1); }
+    const played = dur ? player.time() / dur : 0;
+    for (let x = 0; peaks.length && x < W; x += 2) {
+      const a = Math.floor((x / W) * peaks.length), b = Math.max(a + 1, Math.floor(((x + 2) / W) * peaks.length));
+      let m = 0; for (let i = a; i < b; i++) if (peaks[i] > m) m = peaks[i];
+      const h = Math.max(0.5, m * (mid - 2));
+      g.fillStyle = x / W < played ? C.bright : C.dim;
+      g.fillRect(x, mid - h, 1, h * 2);
+    }
+    if (dur) { g.fillStyle = C.live; g.fillRect(Math.round(played * W), 0, 1, H); }
+  }
+  const mmss = (t) => J.formatTime(t || 0).slice(0, 5);
+  function drawClock() { $("clock").textContent = mmss(player.time()) + " / " + mmss(player.duration()); }
+  function setTitle(text) { $("trackName").textContent = text; $("trackName").title = text; }
+
+  async function loadAudio(file) {
+    setTitle("Reading…");
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const buf = await ctx.decodeAudioData(await file.arrayBuffer());
+      const n = 600, per = Math.floor(buf.length / n), ch = buf.getChannelData(0);
+      let max = 0; peaks = [];
+      for (let i = 0; i < n; i++) {
+        let m = 0; for (let j = i * per; j < (i + 1) * per; j += 8) { const v = Math.abs(ch[j]); if (v > m) m = v; }
+        peaks.push(m); if (m > max) max = m;
+      }
+      peaks = peaks.map((p) => max ? p / max : 0);
+      ctx.close();
+      if (player.playing) player.pause();
+      audio.src = URL.createObjectURL(file);
+      player.mode = "audio";
+      setTitle(file.name.replace(/\.[^.]+$/, ""));
+    } catch (e) { setTitle("Couldn't read that file"); }
+    drawWave(); drawClock();
+  }
+
+  // ---------- sessions ----------
+  async function loadSession(session, base, remember, keepImages) {
+    if (!session || !session.waveform) return setTitle("That isn't a session file");
+    if (!audio.paused) audio.pause();
+    player.pause();
+    const dur = J.duration(session), wf = session.waveform, n = 600;
+    let max = 0; const raw = [];
+    for (let i = 0; i < n; i++) {
+      const a = Math.floor((i / n) * dur * wf.rate_hz), b = Math.max(a + 1, Math.floor(((i + 1) / n) * dur * wf.rate_hz));
+      let m = 0; for (let j = a; j < b && j < wf.peaks.length; j++) if (wf.peaks[j] > m) m = wf.peaks[j];
+      raw.push(m); if (m > max) max = m;
+    }
+    peaks = raw.map((p) => max ? p / max : 0);
+    player.mode = "session"; player.dur = dur; player.offset = 0;
+    const t = session.track || {};
+    setTitle([t.title, t.artist].filter(Boolean).join(" · ") || "Untitled session");
+    try { localStorage.setItem("journal.viz.source", JSON.stringify(remember)); } catch (e) {}
+    drawWave(); drawClock();
+    // A session saved in the repo brings its sketches with it.
+    if (base && !keepImages && session.sketches && session.sketches.length) {
+      const blobs = [];
+      for (const sk of session.sketches) {
+        try { const r = await fetch(base + encodeURIComponent(sk.file)); if (r.ok) blobs.push(await r.blob()); } catch (e) {}
+      }
+      if (blobs.length) {
+        images.forEach((x) => URL.revokeObjectURL(x.url));
+        images = blobs.map((b) => ({ blob: b, url: URL.createObjectURL(b) }));
+        J.db.set("viz-images", blobs);
+        show(0);
+      }
+    }
+  }
+  async function loadSavedSession(path, keepImages) {
+    try {
+      const r = await fetch(path + "/session.json", { cache: "no-cache" });
+      if (!r.ok) throw new Error();
+      await loadSession(await r.json(), path + "/", { path }, keepImages);
+    } catch (e) { setTitle("Couldn't open " + path); }
+  }
+  function loadFromMarker() {
+    const m = J.store.get("journal.marker.current");
+    if (!m || !m.waveform || !m.waveform.peaks.length) return setTitle("The Marker has no waveform yet");
+    loadSession(m, null, { marker: true });
+  }
+
+  async function openMenu() {
+    const menu = $("menu");
+    if (menu.classList.contains("open")) return menu.classList.remove("open");
+    const get = (u) => fetch(u, { cache: "no-cache" }).then((r) => r.ok ? r.json() : { sessions: [] }).catch(() => ({ sessions: [] }));
+    const [pub, priv] = await Promise.all([get("sessions/index.json"), get("private/index.json")]);
+    const list = [...(pub.sessions || []), ...(priv.sessions || [])].sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+    const E = J.escape;
+    menu.innerHTML =
+      '<button data-act="marker"><span class="label">Latest</span><span>From the Marker</span><span></span></button>' +
+      list.map((x) => '<button data-path="' + E(x.path) + '"><span class="label">' + E(x.date || "") + "</span><span>" + E(x.title || "Untitled") +
+        (x.artist ? ' <span class="label">' + E(x.artist) + "</span>" : "") + '</span><span class="label">' + (x.path.startsWith("private") ? "private" : "") + "</span></button>").join("") +
+      (list.length ? "" : '<span class="label dimmed note">No saved sessions yet</span>') +
+      '<button data-act="file"><span class="label">File</span><span>Open a session.json…</span><span></span></button>';
+    menu.querySelectorAll("button").forEach((b) => b.onclick = () => {
+      menu.classList.remove("open");
+      if (b.dataset.path) loadSavedSession(b.dataset.path);
+      else if (b.dataset.act === "marker") loadFromMarker();
+      else $("sessionInput").click();
+    });
+    menu.classList.add("open");
+  }
+  document.addEventListener("mousedown", (e) => {
+    if (!e.target.closest("#menu") && !e.target.closest("#sessionBtn")) $("menu").classList.remove("open");
+  });
+
+  function togglePlay() {
+    if (player.mode === "none") return openMenu();
+    player.isPlaying() ? player.pause() : player.play();
+  }
+  audio.addEventListener("play", playingChanged);
+  audio.addEventListener("pause", playingChanged);
+  audio.addEventListener("loadedmetadata", () => { drawWave(); drawClock(); });
+
+  canvas.addEventListener("click", (e) => {
+    if (!player.duration()) return openMenu();
+    const r = canvas.getBoundingClientRect();
+    player.seek(((e.clientX - r.left) / r.width) * player.duration());
+    drawWave(); drawClock();
+  });
+
+  // ---------- images (kept in this browser between visits) ----------
+  function show(i) {
+    current = Math.max(0, Math.min(images.length - 1, i));
+    const frame = $("frame");
+    frame.innerHTML = "";
+    $("empty").hidden = images.length > 0;
+    if (images.length) {
+      const img = document.createElement("img");
+      img.src = images[current].url; img.alt = "Image " + (current + 1);
+      frame.appendChild(img);
+    }
+    $("count").textContent = images.length > 1 ? J.pad(current + 1) + " / " + J.pad(images.length) : "";
+  }
+  async function addImages(files) {
+    for (const f of files) {
+      if (!f.type.startsWith("image/")) continue;
+      images.push({ blob: f, url: URL.createObjectURL(f) });
+    }
+    J.db.set("viz-images", images.map((x) => x.blob));
+    show(images.length - 1);
+  }
+  async function restoreImages() {
+    const blobs = await J.db.get("viz-images");
+    if (blobs && blobs.length) { images = blobs.map((b) => ({ blob: b, url: URL.createObjectURL(b) })); }
+    show(0);
+  }
+
+  const stage = $("stage");
+  ["dragenter", "dragover"].forEach((t) => stage.addEventListener(t, (e) => { e.preventDefault(); stage.classList.add("drop"); }));
+  ["dragleave", "drop"].forEach((t) => stage.addEventListener(t, () => stage.classList.remove("drop")));
+  stage.addEventListener("drop", (e) => {
+    e.preventDefault();
+    const files = [...e.dataTransfer.files];
+    const a = files.find((f) => f.type.startsWith("audio/"));
+    if (a) loadAudio(a);
+    addImages(files.filter((f) => f.type.startsWith("image/")));
+  });
+  $("empty").onclick = () => $("imageInput").click();
+  $("imageBtn").onclick = () => $("imageInput").click();
+  $("audioBtn").onclick = () => $("audioInput").click();
+  $("sessionBtn").onclick = openMenu;
+  $("sessionInput").onchange = async (e) => {
+    const f = e.target.files[0]; e.target.value = "";
+    if (!f) return;
+    try { const sess = JSON.parse(await f.text()); loadSession(sess, null, { session: sess }); }
+    catch (err) { setTitle("That isn't a session file"); }
+  };
+  function toggleFill() {
+    document.body.classList.toggle("fill");
+    const on = document.body.classList.contains("fill");
+    $("fillBtn").classList.toggle("on", on);
+    try { localStorage.setItem("journal.viz.fill", on ? "1" : ""); } catch (e) {}
+  }
+  $("fillBtn").onclick = toggleFill;
+  try { if (localStorage.getItem("journal.viz.fill")) toggleFill(); } catch (e) {}
+  $("clearBtn").onclick = () => {
+    if (!images.length || !confirm("Remove all images from the visualizer?")) return;
+    images.forEach((x) => URL.revokeObjectURL(x.url)); images = [];
+    J.db.remove("viz-images"); show(0);
+  };
+  $("imageInput").onchange = (e) => { addImages([...e.target.files]); e.target.value = ""; };
+  $("audioInput").onchange = (e) => { if (e.target.files[0]) loadAudio(e.target.files[0]); e.target.value = ""; };
+
+  document.addEventListener("keydown", (e) => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.code === "Space") { e.preventDefault(); togglePlay(); }
+    else if (e.key === "Escape") $("menu").classList.remove("open");
+    else if (e.key === "ArrowRight") show(current + 1);
+    else if (e.key === "ArrowLeft") show(current - 1);
+    else if (e.code === "KeyF") toggleFill();
+  });
+
+  new ResizeObserver(() => { sizeCanvas(); drawWave(); }).observe(canvas);
+  (function tick() {
+    if (player.isPlaying()) {
+      drawWave(); drawClock();
+      if (player.mode === "session" && player.time() >= player.dur) player.pause();
+    }
+    requestAnimationFrame(tick);
+  })();
+
+  // Reopen whatever session was used last time (images come back from this browser's storage).
+  restoreImages().then(() => {
+    let last = null;
+    try { last = JSON.parse(localStorage.getItem("journal.viz.source") || "null"); } catch (e) {}
+    if (!last) return;
+    if (last.path) loadSavedSession(last.path, images.length > 0);
+    else if (last.marker) loadFromMarker();
+    else if (last.session) loadSession(last.session, null, last);
+  });
+})();
+</script>
+</body>
+</html>
