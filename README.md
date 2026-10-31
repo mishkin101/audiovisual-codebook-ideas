@@ -14,6 +14,7 @@ Paper sketches come first. This repo adds **time**. While a song plays, I mark *
 - design system research and clean up - unify tagging/listening
 - touch interface design and gesture constraints/ intuitive tagging system
 - sound wave visualization clean up (find library)
+- audio input playback synchronization
 
 ## What's here
 
