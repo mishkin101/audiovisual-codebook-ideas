@@ -8,6 +8,13 @@ Paper sketches come first. This repo adds **time**. While a song plays, I mark *
 
 ---
 
+## Todo
+
+- claude language output, garage cleanup
+- design system research and clean up - unify tagging/listening
+- touch interface design and gesture constraints/ intuitive tagging system
+- sound wave visualization clean up (find library)
+
 ## What's here
 
 | Page | What it's for |
@@ -150,9 +157,3 @@ prompts/              Early notes and prompts
 
 ---
 
-## Todo
-
-- claude language output
-- design system research and clean up - unify tagging/listening
-- touch interface design and gesture constraints/ intuitive tagging system
-- sound wave visualization clean up (find library)
