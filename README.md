@@ -32,6 +32,7 @@ Paper sketches come first. This repo adds **time**. While a song plays, I mark *
 | **Editor** · `edit.html` | Use afterwards. Fill in each mark (tags, colors, motion, texture, notes), attach sketch photos, save the session. |
 | **Visualizer** · `visualizer.html` | Concept draft: an image fills the screen under a slim full-width waveform. **Session** loads a saved listen (its waveform and sketches, no audio needed); **Audio** plays a local file instead. Will grow into visuals forming as the song plays. |
 | **Design system** · `docs/design-system.html` | The visual rules every page follows. |
+| **Research dump** · [`research-dump/`](research-dump/) | Research, references and files collected along the way, e.g. the [Seeing Sound reading list](research-dump/seeing-sound-reading-list.md). |
 | **Concept** · [`docs/concept.md`](docs/concept.md) | The thinking behind it: vocabulary, data format, decisions. |
 
 ## What you need
@@ -179,6 +180,7 @@ sessions/             Saved public sessions, one folder each, plus index.json fo
 private/              Saved private sessions (ignored by git)
 docs/concept.md       Concept, data format and decisions
 docs/design-system.html  Visual rules
+research-dump/        Research, references and files collected along the way
 prompts/              Early notes and prompts
 ```
 
