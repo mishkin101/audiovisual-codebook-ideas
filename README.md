@@ -16,6 +16,6 @@ Run locally: `python3 -m http.server 8765`, then open http://localhost:8765/mark
 
 # todo
 - claude language output
-- design system clean up
-- touch interface design
-- sound wave clean up 
+- design system research and clean up
+- touch interface design and gesture constraints/ intuitive tagging system
+- sound wave visualization clean up (find library)
