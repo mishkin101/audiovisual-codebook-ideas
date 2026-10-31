@@ -16,6 +16,7 @@ Paper sketches come first. This repo adds **time**. While a song plays, I mark *
 
 ## Todo
 
+- Read reading list in research-dump
 - claude language output, garage cleanup
 - design system research and clean up - unify tagging/listening
 - touch interface design and gesture constraints/ intuitive tagging system
