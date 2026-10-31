@@ -147,3 +147,12 @@ prompts/              Early notes and prompts
 - **Swiping moves energy the wrong way.** Press **I**.
 - **The Editor's Save downloads files instead.** You're not in Chrome, or you didn't choose the folder. Click **Folder** in Chrome, or move the downloaded files into `sessions/<date-artist-track>/` yourself.
 - **A photo won't add.** It's probably HEIC (iPhone). Export it as JPEG and try again.
+
+---
+
+## Todo
+
+- claude language output
+- design system research and clean up - unify tagging/listening
+- touch interface design and gesture constraints/ intuitive tagging system
+- sound wave visualization clean up (find library)
